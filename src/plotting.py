@@ -1,21 +1,26 @@
 """Moon | Earth patch comparison plot (CONTRACT §6)."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import matplotlib
 import numpy as np
 from matplotlib.colors import LightSource
 from matplotlib.figure import Figure
 
-from config import EARTH_PATCH_DIR, PIXEL_SIZE_M, PATCH_SIZE_M
+from config import EARTH_NPZ_DIR, EARTH_PATCH_DIR, PIXEL_SIZE_M, PATCH_SIZE_M
 
 
-def load_earth_patch(patch_id: str, npz_path=None) -> np.ndarray | None:
-    """Patch from earth_patches.npz, falling back to the per-patch .npy; None if neither has it."""
-    from config import DATA_DIR
+def load_earth_patch(patch_id: str, npz_dir=None) -> np.ndarray | None:
+    """Patch from earth_npz/{region}.npz, falling back to the per-patch .npy; None if neither has it.
 
-    npz_path = npz_path or DATA_DIR / "patches" / "earth_patches.npz"
-    if npz_path.exists():
-        with np.load(npz_path) as z:
+    patch_id is ``earth_{region}_{NNNN}``, so the region (and its npz) follows from the id.
+    """
+    npz_dir = Path(npz_dir) if npz_dir else EARTH_NPZ_DIR
+    region = patch_id.removeprefix("earth_").rsplit("_", 1)[0]
+    npz = npz_dir / f"{region}.npz"
+    if npz.exists():
+        with np.load(npz) as z:
             if patch_id in z.files:
                 return z[patch_id]
     npy = EARTH_PATCH_DIR / f"{patch_id}.npy"

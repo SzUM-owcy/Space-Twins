@@ -28,6 +28,7 @@ COPDEM_NODATA = None  # verified: COG has no nodata tag, float32, scale 1
 COPDEM_DIR = DATA_DIR / "copdem"
 
 EARTH_PATCH_DIR = DATA_DIR / "patches" / "earth"
+EARTH_NPZ_DIR = DATA_DIR / "patches" / "earth_npz"  # one small {region}.npz per region
 EARTH_INDEX_PATH = DATA_DIR / "earth_index.csv"
 
 # CONTRACT §3/§4

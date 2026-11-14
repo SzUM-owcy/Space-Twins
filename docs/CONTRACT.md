@@ -127,7 +127,7 @@ rms_height, tri_mean, relief_range, hypsometric_integral, elev_skew
 | `data/moon_index.csv` | B | tak | wybrane miejsca Księżyca (10–20 wierszy) |
 | `data/patches/moon/{patch_id}.npy` | B | tak | łatka 85×85 `float32`, metry |
 | `data/patches/earth/{patch_id}.npy` | A | **nie** | robocze łatki 85×85 `float32` na maszynie A |
-| `data/patches/earth_patches.npz` | A | **tak, raz** (po C4, ok. 20–90 MB) | `np.savez_compressed`, klucze = `patch_id`, wartości `float32`. Dzięki temu wykres porównawczy działa na czystym klonie. Nie commitujemy go wielokrotnie (historia gita puchnie) – jedna wersja po C4, ewentualnie jedna poprawka po C5 |
+| `data/patches/earth_npz/{region}.npz` | A | **tak** (po jednym pliku na region, ok. 0,5–3 MB każdy, razem ok. 90 MB) | `np.savez_compressed`, klucze = `patch_id`, wartości `float32`. Dzięki temu wykres porównawczy działa na czystym klonie. Region wynika z `patch_id` (`earth_{region}_{NNNN}`); `src/plotting.py::load_earth_patch` czyta właściwy plik. Dodanie regionu dodaje tylko nowe pliki; istniejących nie przepisujemy (historia gita nie puchnie). Zastępuje pojedynczy `earth_patches.npz` |
 | `data/nasadem/`, `data/lola/` | – | **nie** (`.gitignore`) | surowe rastry, każdy ma lokalnie |
 | `outputs/latest_query.json` | B | nie | wynik ostatniego zapytania, schemat w §5 |
 

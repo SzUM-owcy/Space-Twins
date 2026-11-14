@@ -1,7 +1,7 @@
 """Build data/earth_index.csv: split regions into 10 km patches, extract, compute features.
 
     uv run python 1_build_index.py [--dem nasadem|copdem] [--regions uyuni,alps] [--workers 4]
-    uv run python 1_build_index.py --npz   # pack patches into data/patches/earth_patches.npz
+    uv run python 1_build_index.py --npz   # pack patches into data/patches/earth_npz/{region}.npz
 
 Default: all regions of the chosen DEM. Existing rows of other regions are kept.
 If Python SSL fails (WSL/proxy), set REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt.
@@ -22,7 +22,7 @@ from rasterio.merge import merge
 from rasterio.warp import transform as warp_transform
 
 from config import (
-    COPDEM_NODATA, DATA_DIR, EARTH_INDEX_PATH, EARTH_PATCH_DIR, NASADEM_NODATA, OUTPUT_DIR,
+    COPDEM_NODATA, DATA_DIR, EARTH_INDEX_PATH, EARTH_NPZ_DIR, EARTH_PATCH_DIR, NASADEM_NODATA, OUTPUT_DIR,
     PATCH_SIZE_M, PIXEL_SIZE_M, RECORD_COLUMNS,
 )
 from src.contracts import validate_records
@@ -197,12 +197,20 @@ def process_region(region: Region, mosaic: Path) -> tuple[list[dict], Counter]:
     return rows, counter.counts
 
 
-def build_npz() -> None:
-    """Pack all indexed patches into data/patches/earth_patches.npz (keys = patch_id, float32)."""
-    ids = pd.read_csv(EARTH_INDEX_PATH)["patch_id"]
-    out = EARTH_PATCH_DIR.parent / "earth_patches.npz"
-    np.savez_compressed(out, **{i: np.load(EARTH_PATCH_DIR / f"{i}.npy").astype(np.float32) for i in ids})
-    print(f"wrote {out} ({len(ids)} patches, {out.stat().st_size / 1e6:.1f} MB)")
+def build_npz(regions: list[str] | None = None) -> None:
+    """Pack patches into data/patches/earth_npz/{region}.npz (keys = patch_id, float32).
+
+    Existing region files are left untouched (rewriting changes the bytes and bloats git history)
+    unless the region is named in ``regions``.
+    """
+    index = pd.read_csv(EARTH_INDEX_PATH)
+    EARTH_NPZ_DIR.mkdir(parents=True, exist_ok=True)
+    for region, ids in index.groupby("region")["patch_id"]:
+        out = EARTH_NPZ_DIR / f"{region}.npz"
+        if out.exists() and not (regions and region in regions):
+            continue
+        np.savez_compressed(out, **{i: np.load(EARTH_PATCH_DIR / f"{i}.npy").astype(np.float32) for i in ids})
+        print(f"wrote {out.name} ({len(ids)} patches, {out.stat().st_size / 1e6:.1f} MB)")
 
 
 def main() -> None:
@@ -210,10 +218,10 @@ def main() -> None:
     p.add_argument("--dem", choices=list(DEMS), default="nasadem")
     p.add_argument("--regions", help="comma-separated slugs (default: all of the chosen DEM)")
     p.add_argument("--workers", type=int, default=1)
-    p.add_argument("--npz", action="store_true", help="only pack existing patches into earth_patches.npz")
+    p.add_argument("--npz", action="store_true", help="only pack patches into data/patches/earth_npz/{region}.npz (existing files kept unless named in --regions)")
     args = p.parse_args()
     if args.npz:
-        return build_npz()
+        return build_npz(args.regions.split(",") if args.regions else None)
 
     check_regions(REGIONS)
     write_regions_csv(REGIONS)
