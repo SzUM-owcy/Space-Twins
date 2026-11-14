@@ -128,6 +128,37 @@ seasonal and diurnal variation at fixed overpass times and include an atmosphere
 diurnal cycle in vacuum. Polar-night / cloudy patches (e.g. `haughton`, `schirmacher_oasis`) are `missing`.
 The 0.20 default weight is an experimental setting.
 
+### Solar-illumination feature (optional, experimental)
+
+`solar_visibility_fraction` = share of the time the Sun is above the **terrain horizon**, relative to the
+time it is above the flat horizon. Over a year the flat-horizon share is ~0.5 everywhere on both bodies, so
+only terrain shading carries signal (0 = permanently shadowed, 1 = never shaded). Side tables keyed by
+`patch_id` (`data/illumination_earth.csv`, `data/illumination_moon.csv`); the CONTRACT CSVs are unchanged.
+
+| Body | Terrain | Sun position |
+|------|---------|--------------|
+| Earth | NASADEM/COPDEM mosaics, 20 km window at 250 m | pvlib (NREL SPA), hourly 2024, Sun centre, no refraction |
+| Moon | LOLA 118 m global (`config.LOLA_GLOBAL_PATH`; also looked up in `moon/data/`), same window | NASA SPICE (DE440s, `IAU_MOON`), same hourly grid |
+
+Horizons are ray-marched (72 azimuths, curvature drop included) from a 5 x 5 grid of points in the patch
+centre; the patch value is the median. SPICE kernels (~33 MB) are downloaded to the gitignored `data/spice/`.
+
+```bash
+uv run --frozen python 1d_build_illumination.py earth   # ~1 min, resumable per region
+uv run --frozen python 1d_build_illumination.py moon
+uv run --frozen python 2_find_analogs.py --site tycho --w-thermal 0.2 --w-illum 0.1   # 0 = off
+```
+
+Terrain weight = `1 - w_thermal - w_illum`; `illumination_distance = |difference| / std(Earth)` capped at 3.
+A missing component drops out of the sum (its weight returns to the others). Output adds
+`illumination_distance` / `illumination_status`; `--lat/--lon` computes the Moon value live.
+
+Limitations: geometric visibility only (no atmosphere, clouds, insolation or temperature); the 20 km window
+truncates horizons near region edges and for polar craters, whose shadows depend on larger terrain; polar
+sites use the global product (the 20 m polar DEM is not used). The feature is derived from the DEM, so it is
+strongly rank-correlated with roughness on Earth (about -0.85 with `rms_height`), and it saturates for
+permanently shadowed Moon sites (no Earth patch is that dark). The 0.10 default weight is experimental.
+
 ### Run tests
 
 ```bash
