@@ -108,7 +108,10 @@ def score_table(df: pd.DataFrame) -> pd.DataFrame:
         lambda c, a, r: mean_available([band_score(c, "city_travel_minutes"), band_score(a, "airport_travel_minutes"), band_score(r, "major_road_distance_km")]),
         "city_travel_minutes", "airport_travel_minutes", "major_road_distance_km",
     )
-    df["buildability_score"] = apply(lambda s: band_score(s, "facility_core_slope_p90"), "facility_core_slope_p90")
+    df["buildability_score"] = apply(
+        lambda s, r: mean_available([band_score(s, "facility_core_slope_p90"), band_score(r, "facility_core_relief_m")]),
+        "facility_core_slope_p90", "facility_core_relief_m",
+    )
     df["emergency_support_score"] = apply(lambda h: band_score(h, "hospital_travel_minutes"), "hospital_travel_minutes")
     df["infrastructure_score"] = apply(lambda g: band_score(g, "grid_distance_km"), "grid_distance_km")
 

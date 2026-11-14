@@ -145,7 +145,10 @@ PRACTICALITY_THRESHOLDS = {
     "hospital_travel_minutes": (60, 120, 240),
     "grid_distance_km": (5, 25, 100),
     "facility_core_slope_p90": (5, 10, 20),
+    "facility_core_relief_m": (10, 30, 100),
 }
+FACILITY_CORE_PIXELS = 9  # ~1 km at 117.6 m/px
+FACILITY_CORE_STRIDE = 2
 PRACTICALITY_BAND_SCORES = (100.0, 62.5, 37.5, 12.5)  # centre of each 25-point class
 PRACTICALITY_CLASS_EDGES = (75.0, 50.0, 25.0)  # LOW >= 75, MEDIUM >= 50, HIGH >= 25, else VERY HIGH
 PRACTICALITY_SCORE_WEIGHTS = {
