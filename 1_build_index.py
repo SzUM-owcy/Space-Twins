@@ -21,7 +21,7 @@ from rasterio.merge import merge
 from rasterio.warp import transform as warp_transform
 
 from config import (
-    COPDEM_NODATA, EARTH_INDEX_PATH, EARTH_PATCH_DIR, NASADEM_NODATA, OUTPUT_DIR,
+    COPDEM_NODATA, DATA_DIR, EARTH_INDEX_PATH, EARTH_PATCH_DIR, NASADEM_NODATA, OUTPUT_DIR,
     PATCH_SIZE_M, PIXEL_SIZE_M, RECORD_COLUMNS,
 )
 from src.contracts import validate_records
@@ -60,6 +60,14 @@ def check_regions(regions: list[Region]) -> None:
     for a, b in itertools.combinations(regions, 2):
         overlap = a.bbox[0] < b.bbox[2] and b.bbox[0] < a.bbox[2] and a.bbox[1] < b.bbox[3] and b.bbox[1] < a.bbox[3]
         assert not overlap, f"bboxes overlap: {a.slug} / {b.slug}"
+
+
+def write_regions_csv(regions: list[Region]) -> None:
+    """Region metadata incl. the `validation` flag (kept out of the 17-column index, CONTRACT §4)."""
+    pd.DataFrame(
+        [{"region": r.slug, "dem": r.dem, "validation": r.validation,
+          "west": r.bbox[0], "south": r.bbox[1], "east": r.bbox[2], "north": r.bbox[3]} for r in regions]
+    ).to_csv(DATA_DIR / "regions.csv", index=False)
 
 
 def grid_centres(bbox) -> list[tuple[float, float]]:
@@ -147,6 +155,7 @@ def main() -> None:
     args = p.parse_args()
 
     check_regions(REGIONS)
+    write_regions_csv(REGIONS)
     wanted = args.regions.split(",") if args.regions else None
     todo = [r for r in REGIONS if r.dem == args.dem and (wanted is None or r.slug in wanted)]
     if wanted and {r.slug for r in todo} != set(wanted):
