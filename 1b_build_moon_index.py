@@ -15,8 +15,8 @@ import numpy as np
 import pandas as pd
 from matplotlib.colors import LightSource
 
-from config import DATA_DIR, OUTPUT_DIR, PIXEL_SIZE_M
-from src.morphometry import FEATURE_NAMES, extract_patch_features
+from config import DATA_DIR, OUTPUT_DIR, PIXEL_SIZE_M, RECORD_COLUMNS
+from src.morphometry import extract_patch_features
 from src.query import PatchRejected, moon_patch_for
 
 PATCH_DIR = DATA_DIR / "patches" / "moon"
@@ -53,8 +53,6 @@ SITES: dict[str, tuple[float, float]] = {
     "de_gerlache": (-88.39, -91.4),
     "malapert": (-85.9, 0.0),  # masyw Malapert
 }
-
-RECORD_COLUMNS = ["patch_id", "source", "region", "center_lat", "center_lon", *FEATURE_NAMES]
 
 
 def save_preview(patch: np.ndarray, title: str, path) -> None:

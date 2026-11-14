@@ -9,15 +9,17 @@ import numpy as np
 import pandas as pd
 import rasterio
 
-from config import DATA_DIR, LOLA_NODATA, LOLA_SCALE, PIXEL_SIZE_M
-from src.morphometry import FEATURE_NAMES, extract_patch_features
+from config import (
+    FEATURE_NAMES,
+    LOLA_GLOBAL_PATH,
+    LOLA_NODATA,
+    LOLA_POLAR_PATH,
+    LOLA_SCALE,
+    PIXEL_SIZE_M,
+)
+from src.morphometry import extract_patch_features
 from src.raster_io import extract_patch
 from src.scoring import distances, fit_scaler, transform
-
-# Tymczasowo tutaj; po uzgodnieniu z A przenieść do config.py (CONTRACT §6).
-LOLA_GLOBAL_PATH = DATA_DIR / "lola" / "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
-# Produkt polarny PDS3 (stereografia polarna, 20 m/px, 80-90°S); otwieramy przez etykietę .lbl.
-LOLA_POLAR_PATH = DATA_DIR / "lola" / "ldem_80s_20m.lbl"
 
 # Produkt globalny LOLA 118 m: |lat| <= 75°; polarny: lat <= -80°. Pas 75-80° pomijamy (CONTRACT §2).
 GLOBAL_MAX_ABS_LAT = 75.0

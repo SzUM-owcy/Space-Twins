@@ -12,11 +12,8 @@ from typing import Mapping
 import numpy as np
 import pandas as pd
 
-from src.morphometry import FEATURE_NAMES
+from config import FEATURE_NAMES, SHAPE_FEATURES, SLOPE_FEATURES
 
-# Tymczasowo lokalnie; po C0 (config.py od A) importujemy stąd stałe z config.py.
-SLOPE_FEATURES = FEATURE_NAMES[:7]  # slope_p05 ... slope_p95
-SHAPE_FEATURES = FEATURE_NAMES[7:]  # rms_height, tri_mean, relief_range, hypsometric_integral, elev_skew
 LOG1P_FEATURES = ("rms_height", "tri_mean", "relief_range")
 
 
