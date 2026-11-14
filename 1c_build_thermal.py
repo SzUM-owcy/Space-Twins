@@ -3,6 +3,7 @@
 Usage:
   uv run --frozen python 1c_build_thermal.py earth [--regions a,b] [--workers 16]
   uv run --frozen python 1c_build_thermal.py moon  [--workers 16]
+  uv run --frozen python 1c_build_thermal.py moon-polar   # south-polar sites (lat <= -80) from Diviner PCP 240 m
   uv run --frozen python 1c_build_thermal.py finalize
 
 ``finalize`` builds the versioned reference distributions and writes
@@ -32,11 +33,14 @@ from config import (
 from src.thermal import build_reference, empirical_cdf, save_reference
 
 log = logging.getLogger("thermal")
-EARTH_DATASET = "MODIS MOD11A2/MYD11A2.061 LST day+night"
+EARTH_DATASET = "MODIS MOD11A2/MYD11A2.061 LST: median 8-day day-night swing (<=4 overpass samples)"
 MOON_DATASET = "LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)"
 MOON_INDEX_PATH = EARTH_INDEX_PATH.with_name("moon_index.csv")
+POLAR_DATASET = "LRO Diviner PCP tbol (240 m, 0.5 h local-time bins; mean of summer and winter P95-P05)"
 MOON_REFERENCE_GRID_PATH = THERMAL_MOON_PATH.with_name("thermal_moon_grid.csv")
 PERIOD = f"{THERMAL_REFERENCE_START}/{THERMAL_REFERENCE_END}"
+MOON_POLAR_PATH = THERMAL_MOON_PATH.with_name("thermal_moon_polar.csv")
+POLAR_MAX_LAT = -80.0  # the PCP south polar product starts at 80 S
 
 
 def _read_table(path) -> pd.DataFrame:
@@ -109,6 +113,8 @@ def build_moon(workers: int) -> None:
     table["thermal_dataset"] = MOON_DATASET
     table["thermal_period"] = "2009-07-05/2015-04-01"
     _write_table(table, THERMAL_MOON_PATH)
+    _apply_polar_overrides()
+    table = _read_table(THERMAL_MOON_PATH)
     log.info("moon sites: %d/%d valid", table["surface_temperature_range_k"].notna().sum(), len(table))
 
     if MOON_REFERENCE_GRID_PATH.exists():
@@ -121,6 +127,41 @@ def build_moon(workers: int) -> None:
     grid.insert(0, "lat", [p[0] for p in pts])
     grid.insert(1, "lon", [p[1] for p in pts])
     grid.to_csv(MOON_REFERENCE_GRID_PATH, index=False)
+
+
+def _apply_polar_overrides() -> None:
+    """Replace the 0.5 deg GCP value of south-polar sites with the 240 m PCP value (when it was built)."""
+    if not MOON_POLAR_PATH.exists():
+        return
+    polar = pd.read_csv(MOON_POLAR_PATH).set_index("patch_id")
+    table = _read_table(THERMAL_MOON_PATH)
+    for pid, row in polar.iterrows():
+        sel = table["patch_id"] == pid
+        if not sel.any() or pd.isna(row["surface_temperature_range_k"]):
+            continue
+        for col in ("surface_temperature_range_k", "thermal_valid_fraction", "thermal_valid_observations"):
+            table.loc[sel, col] = row[col]
+        table.loc[sel, "thermal_dataset"] = POLAR_DATASET
+        table.loc[sel, "thermal_period"] = "2009-07-05/2019-02-17"
+    _write_table(table, THERMAL_MOON_PATH)
+
+
+def build_moon_polar(workers: int) -> None:
+    from src.moon_polar_thermal import polar_site_thermal
+
+    sites = pd.read_csv(MOON_INDEX_PATH)
+    sites = sites[sites["center_lat"] <= POLAR_MAX_LAT]
+    rows = []
+    for site in sites.itertuples():
+        try:
+            rows.append({"patch_id": site.patch_id, **polar_site_thermal(site.center_lat, site.center_lon, workers)})
+        except Exception as exc:
+            log.error("%s: failed (%s)", site.patch_id, exc)
+            continue
+        log.info("%s: %s", site.patch_id, {k: round(v, 2) for k, v in rows[-1].items() if k != "patch_id"})
+    if rows:
+        pd.DataFrame(rows).to_csv(MOON_POLAR_PATH, index=False)
+        _apply_polar_overrides()
 
 
 def finalize() -> None:
@@ -144,7 +185,7 @@ def finalize() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("step", choices=["earth", "moon", "finalize"])
+    parser.add_argument("step", choices=["earth", "moon", "moon-polar", "finalize"])
     parser.add_argument("--regions", default=None, help="comma-separated Earth regions (re-does them)")
     parser.add_argument("--workers", type=int, default=16)
     args = parser.parse_args()
@@ -153,6 +194,8 @@ def main() -> None:
         build_earth(args.regions.split(",") if args.regions else None, args.workers)
     elif args.step == "moon":
         build_moon(args.workers)
+    elif args.step == "moon-polar":
+        build_moon_polar(args.workers)
     else:
         finalize()
 

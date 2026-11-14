@@ -1,7 +1,10 @@
-"""Earth: per-patch surface temperature range from MODIS 8-day LST (Terra + Aqua, day + night).
+"""Earth: per-patch diurnal surface temperature range from MODIS 8-day LST (Terra + Aqua, day + night).
 
-For every pixel the P95-P05 of all valid observations of the reference period is computed
-(seasonal + diurnal spread at the overpass times); a patch gets the median of its pixels.
+Main value (``surface_temperature_range_k``): for each 8-day period the spread (max - min) of the up to
+four overpass samples (Terra ~10:30/22:30, Aqua ~13:30/01:30) is a lower bound of the day-night swing; the pixel
+gets the median over the periods of the year and the patch the median of its pixels. This keeps
+seasonal variation out of the value, like the lunar descriptor (local-time cycle at one place).
+``thermal_seasonal_range_k`` is the earlier year-wide P95-P05 of all samples (seasonal + diurnal), kept for reference.
 """
 
 from __future__ import annotations
@@ -20,6 +23,8 @@ from config import (
     PATCH_SIZE_M,
     THERMAL_EARTH_COLLECTION,
     THERMAL_MIN_OBS,
+    THERMAL_MIN_PERIODS,
+    THERMAL_MIN_SAMPLES_PER_PERIOD,
     THERMAL_MIN_VALID_FRACTION,
     THERMAL_REFERENCE_END,
     THERMAL_REFERENCE_START,
@@ -91,8 +96,8 @@ def _load_item(item, bbox):
         qc = _read(item.assets[qc_key].href, win)
         ok = (lst > 0) & ((qc & 3) < 2)  # QA bits 0-1: 0 good, 1 other quality; 2-3 not produced
         out.append(np.where(ok, lst * LST_SCALE, np.nan))
-    tile = item.id.split(".")[2]
-    return tile, transform, win, out
+    _, period, tile, *_ = item.id.split(".")
+    return tile, period, transform, win, out
 
 
 def _pixel_latlon(transform, shape) -> tuple[np.ndarray, np.ndarray]:
@@ -116,10 +121,11 @@ def region_thermal(patches: list[tuple[str, float, float]], workers: int = 16) -
         loaded = [r for r in pool.map(lambda it: _load_item(it, bbox), items) if r is not None]
 
     tiles: dict[str, dict] = {}
-    for tile, transform, win, obs in loaded:
-        entry = tiles.setdefault(tile, {"transform": transform, "shape": obs[0].shape, "obs": []})
+    for tile, period, transform, win, obs in loaded:
+        entry = tiles.setdefault(tile, {"transform": transform, "shape": obs[0].shape, "obs": [], "periods": {}})
         if obs[0].shape == entry["shape"]:
             entry["obs"].extend(obs)
+            entry["periods"].setdefault(period, []).extend(obs)  # Terra and Aqua share the period date
 
     for entry in tiles.values():
         stack = np.stack(entry["obs"])  # (n_obs, h, w)
@@ -128,14 +134,27 @@ def region_thermal(patches: list[tuple[str, float, float]], workers: int = 16) -
             p05, p95 = np.nanpercentile(stack, [5, 95], axis=0)
         rng = p95 - p05
         rng[n_valid < THERMAL_MIN_OBS] = np.nan
-        entry["range"], entry["n_valid"] = rng, n_valid
+        entry["seasonal"] = rng
+        amps = []
+        for samples in entry["periods"].values():
+            sub = np.stack(samples)
+            with np.errstate(all="ignore"):
+                amp = np.nanmax(sub, axis=0) - np.nanmin(sub, axis=0)
+            amp[np.isfinite(sub).sum(axis=0) < THERMAL_MIN_SAMPLES_PER_PERIOD] = np.nan
+            amps.append(amp)
+        amps = np.stack(amps)
+        n_periods = np.isfinite(amps).sum(axis=0)
+        with np.errstate(all="ignore"):
+            diurnal = np.nanmedian(amps, axis=0)
+        diurnal[n_periods < THERMAL_MIN_PERIODS] = np.nan
+        entry["range"], entry["n_valid"] = diurnal, n_periods
         entry["lat"], entry["lon"] = _pixel_latlon(entry["transform"], entry["shape"])
 
     results = []
     for patch_id, lat0, lon0 in patches:
         half_lat = HALF_PATCH_KM / KM_PER_DEG
         half_lon = half_lat / np.cos(np.radians(lat0))
-        ranges, counts, total = [], [], 0
+        ranges, counts, seasonal, total = [], [], [], 0
         for entry in tiles.values():
             m = (np.abs(entry["lat"] - lat0) <= half_lat) & (
                 np.abs(((entry["lon"] - lon0 + 180) % 360) - 180) <= half_lon
@@ -144,13 +163,15 @@ def region_thermal(patches: list[tuple[str, float, float]], workers: int = 16) -
             good = m & np.isfinite(entry["range"])
             ranges.append(entry["range"][good])
             counts.append(entry["n_valid"][good])
-        ranges, counts = np.concatenate(ranges), np.concatenate(counts)
+            seasonal.append(entry["seasonal"][good])
+        ranges, counts, seasonal = np.concatenate(ranges), np.concatenate(counts), np.concatenate(seasonal)
         frac = ranges.size / total if total else 0.0
         ok = frac >= THERMAL_MIN_VALID_FRACTION
         results.append(
             {
                 "patch_id": patch_id,
                 "surface_temperature_range_k": float(np.median(ranges)) if ok else float("nan"),
+                "thermal_seasonal_range_k": float(np.nanmedian(seasonal)) if ok and np.isfinite(seasonal).any() else float("nan"),
                 "thermal_valid_fraction": frac,
                 "thermal_valid_observations": int(np.median(counts)) if ranges.size else 0,
             }
