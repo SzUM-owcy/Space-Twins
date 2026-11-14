@@ -220,6 +220,8 @@ __marimo__/
 .streamlit/secrets.toml
 
 moon/data/*
+data/lola
 data/nasadem/
 data/patches/earth/
 outputs/
+scratch/
