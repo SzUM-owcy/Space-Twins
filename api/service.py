@@ -12,6 +12,11 @@ import pandas as pd
 
 from config import (
     DATA_DIR,
+    ILLUM_EARTH_PATH,
+    ILLUM_MOON_PATH,
+    THERMAL_EARTH_PATH,
+    THERMAL_MOON_PATH,
+    THERMAL_MOON_REFERENCE_PATH,
     FEATURE_NAMES,
     GRID_N,
     LOLA_GLOBAL_PATH,
@@ -216,12 +221,62 @@ def earth_patch(patch_id: str) -> PatchGrid:
     )
 
 
+def _table(path) -> pd.DataFrame | None:
+    return pd.read_csv(path) if path.exists() else None
+
+
+def _site_value(path, patch_id: str, column: str) -> float | None:
+    table = _table(path)
+    if table is None or patch_id not in set(table["patch_id"]):
+        return None
+    value = table.set_index("patch_id").loc[patch_id, column]
+    return None if pd.isna(value) else float(value)
+
+
+def _moon_thermal(site_id: str | None, lat: float, lon: float) -> float | None:
+    """Percentyl zakresu temperatur Księżyca (tabela albo na żywo z Diviner); None = brak danych."""
+    if site_id is not None:
+        return _site_value(THERMAL_MOON_PATH, site_id, "thermal_range_percentile")
+    if not THERMAL_MOON_REFERENCE_PATH.exists():
+        return None
+    try:
+        from src.moon_temperature import moon_cell_stats
+        from src.thermal import empirical_cdf, load_reference
+
+        rng = moon_cell_stats(lat, lon)["surface_temperature_range_k"]
+        return float(empirical_cdf(rng, load_reference(THERMAL_MOON_REFERENCE_PATH)))
+    except Exception:  # offline / brak danych: tylko teren
+        return None
+
+
+def _moon_illumination(site_id: str | None, lat: float, lon: float) -> float | None:
+    if site_id is not None:
+        return _site_value(ILLUM_MOON_PATH, site_id, "solar_visibility_fraction")
+    try:
+        from src.illumination_live import moon_illumination_for
+
+        value = moon_illumination_for(lat, lon)["fraction"]
+        return None if value != value else float(value)
+    except Exception:
+        return None
+
+
+def _opt(row, name: str):
+    value = getattr(row, name, None)
+    return None if value is None or value != value else value
+
+
 def analogs(req: AnalogsRequest) -> AnalogsResponse:
     patch, site_id, name, lat, lon = _moon_patch(req.moon)
     features = extract_patch_features(patch, PIXEL_SIZE_M)
     earth = earth_index()
+    moon_thermal = _moon_thermal(site_id, lat, lon) if req.w_thermal > 0 else None
+    moon_illum = _moon_illumination(site_id, lat, lon) if req.w_illum > 0 else None
     result = find_analogs(
-        features, earth, top_k=req.top_k, w_slope=req.w_slope, max_per_region=req.max_per_region
+        features, earth, top_k=req.top_k, w_slope=req.w_slope, max_per_region=req.max_per_region,
+        moon_thermal_percentile=moon_thermal, earth_thermal=_table(THERMAL_EARTH_PATH), w_thermal=req.w_thermal,
+        moon_illumination=moon_illum, earth_illumination=_table(ILLUM_EARTH_PATH), w_illum=req.w_illum,
+        feature_weights=req.feature_weights,
     )
     by_id = earth.set_index("patch_id")
     items = []
@@ -240,6 +295,11 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
                 slope_distance=float(row.slope_distance),
                 shape_distance=float(row.shape_distance),
                 total_distance=float(row.total_distance),
+                terrain_distance=_opt(row, "terrain_distance"),
+                thermal_distance=_opt(row, "thermal_distance"),
+                thermal_status=_opt(row, "thermal_status"),
+                illumination_distance=_opt(row, "illumination_distance"),
+                illumination_status=_opt(row, "illumination_status"),
                 features=earth_features,
                 z_scores=_z_scores(earth_features),
             )
@@ -252,8 +312,13 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
             lon=lon,
             features={k: float(v) for k, v in features.items()},
             z_scores=_z_scores(features),
+            thermal_range_percentile=moon_thermal,
+            solar_visibility_fraction=moon_illum,
         ),
         w_slope=req.w_slope,
+        w_thermal=req.w_thermal,
+        w_illum=req.w_illum,
+        feature_weights=req.feature_weights,
         top_k=req.top_k,
         max_per_region=req.max_per_region,
         out_of_range=list(result.attrs["out_of_range"]),

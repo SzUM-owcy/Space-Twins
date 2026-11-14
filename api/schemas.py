@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from config import FEATURE_NAMES
+
 FeatureGroup = Literal["slope", "shape"]
 Body = Literal["moon", "earth"]
 ErrorCode = Literal[
@@ -117,6 +119,34 @@ class AnalogsRequest(Model):
     max_per_region: int | None = Field(
         default=1, ge=1, description="Maks. łatek z jednego regionu w rankingu; null = bez limitu."
     )
+    w_thermal: float = Field(
+        default=0.0, ge=0, le=1, description="Waga zakresu temperatur (percentyl); 0 = wyłączony (tylko teren)."
+    )
+    w_illum: float = Field(
+        default=0.0, ge=0, le=1, description="Waga oświetlenia (widoczność Słońca); 0 = wyłączone. w_thermal + w_illum <= 1."
+    )
+
+    feature_weights: dict[str, float] | None = Field(
+        default=None,
+        description=(
+            "Względne ważności 12 cech terenu (klucze = nazwy z /meta -> features, wartości >= 0; pominięte = 1). "
+            "Zastępuje podział w_slope. null = domyślny schemat w_slope."
+        ),
+        examples=[{"slope_p50": 3, "rms_height": 2, "elev_skew": 0}],
+    )
+
+    @model_validator(mode="after")
+    def _weights_sum(self) -> AnalogsRequest:
+        if self.feature_weights is not None:
+            unknown = sorted(set(self.feature_weights) - set(FEATURE_NAMES))
+            if unknown:
+                raise ValueError(f"nieznane cechy w feature_weights: {unknown}")
+            vals = list(self.feature_weights.values())
+            if any(v < 0 for v in vals) or (len(vals) == len(FEATURE_NAMES) and sum(vals) <= 0):
+                raise ValueError("feature_weights: wagi >= 0 i nie wszystkie zerowe")
+        if self.w_thermal + self.w_illum > 1.0:
+            raise ValueError("w_thermal + w_illum musi być <= 1")
+        return self
 
 
 class MoonSummary(Model):
@@ -126,6 +156,8 @@ class MoonSummary(Model):
     lon: float
     features: dict[str, float] = Field(description="Surowe wartości 12 cech.")
     z_scores: dict[str, float] = Field(description="Cechy po log1p + z-score względem indeksu Ziemi (CONTRACT §5).")
+    thermal_range_percentile: float | None = Field(default=None, description="Percentyl zakresu temperatur (0..1) albo null.")
+    solar_visibility_fraction: float | None = Field(default=None, description="Ułamek czasu, gdy Słońce jest nad horyzontem terenu, albo null.")
 
 
 class Analog(Model):
@@ -139,6 +171,11 @@ class Analog(Model):
     slope_distance: float
     shape_distance: float
     total_distance: float = Field(description="Mniejsza = bardziej podobny teren.")
+    terrain_distance: float | None = Field(default=None, description="Tylko teren; ustawione, gdy w_thermal lub w_illum > 0.")
+    thermal_distance: float | None = None
+    thermal_status: Literal["ok", "missing"] | None = None
+    illumination_distance: float | None = None
+    illumination_status: Literal["ok", "missing"] | None = None
     features: dict[str, float]
     z_scores: dict[str, float]
 
@@ -146,6 +183,9 @@ class Analog(Model):
 class AnalogsResponse(Model):
     moon: MoonSummary
     w_slope: float
+    feature_weights: dict[str, float] | None = None
+    w_thermal: float = 0.0
+    w_illum: float = 0.0
     top_k: int
     max_per_region: int | None
     out_of_range: list[str] = Field(

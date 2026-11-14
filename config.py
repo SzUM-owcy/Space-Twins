@@ -15,7 +15,10 @@ MOON_RADIUS_M = 1_737_400
 # ocean is stored as 0 (not nodata).
 NASADEM_NODATA = -32768
 LOLA_NODATA = -32768
-LOLA_GLOBAL_PATH = DATA_DIR / "lola" / "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
+_LOLA_NAME = "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
+LOLA_GLOBAL_PATH = DATA_DIR / "lola" / _LOLA_NAME
+if not LOLA_GLOBAL_PATH.exists() and (ROOT / "moon" / "data" / _LOLA_NAME).exists():
+    LOLA_GLOBAL_PATH = ROOT / "moon" / "data" / _LOLA_NAME  # alternative location of the same file
 LOLA_POLAR_PATH = DATA_DIR / "lola" / "ldem_80s_20m.lbl"
 LOLA_SCALE = 0.5
 
@@ -61,3 +64,25 @@ THERMAL_MOON_GCP_URL = (
 )
 THERMAL_MOON_GRID_STEP_DEG = 5.0  # reference grid of lunar cells for the percentile
 W_THERMAL_DEFAULT = 0.2
+
+# Solar-illumination feature (side tables keyed by patch_id).
+ILLUM_EARTH_PATH = DATA_DIR / "illumination_earth.csv"
+ILLUM_MOON_PATH = DATA_DIR / "illumination_moon.csv"
+ILLUM_COLUMNS = [
+    "patch_id", "solar_visibility_fraction", "solar_visibility_astro",
+    "solar_visibility_terrain", "illumination_points", "illumination_horizon_km",
+    "illumination_dataset", "illumination_period",
+]
+ILLUM_START = "2024-01-01"
+ILLUM_END = "2025-01-01"  # exclusive; hourly samples (a 12 h grid would alias with the Earth day)
+ILLUM_STEP_HOURS = 1
+ILLUM_HORIZON_RADIUS_M = 20_000  # DEM window half-size for terrain horizons (Earth mosaics have a ~22 km margin)
+ILLUM_GRID_STEP_M = 250.0
+ILLUM_AZIMUTHS = 72
+ILLUM_POINTS_N = 5  # NxN observer points over the central part of the patch
+ILLUM_POINTS_SPAN_M = 8_000
+ILLUM_MIN_ASTRO_FRACTION = 0.02  # below this (polar night) the ratio is not meaningful -> missing
+SPICE_DIR = DATA_DIR / "spice"
+SPICE_KERNELS = ("naif0012.tls", "pck00011.tpc", "de440s.bsp")
+SPICE_URL = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
+W_ILLUM_DEFAULT = 0.1

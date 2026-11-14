@@ -107,30 +107,59 @@ def moon_features_for(
 
 
 THERMAL_RESULT_COLUMNS = ["terrain_distance", "thermal_distance", "thermal_status"]
+ILLUM_RESULT_COLUMNS = ["illumination_distance", "illumination_status"]
 # E|d|^2 of two independent uniform percentiles is 1/6, so sqrt(6) puts |dp| on a z-score-like scale.
 THERMAL_DISTANCE_SCALE = float(np.sqrt(6.0))
+ILLUM_VALUE_COLUMN = "solar_visibility_fraction"
 
 
-def _add_thermal(
+def _component_distance(
+    ranked: pd.DataFrame, moon_value: float | None, earth_values: pd.Series | None, scale: float
+) -> pd.Series:
+    """|moon - earth| * scale per ranked patch; NaN when either side is missing."""
+    out = pd.Series(np.nan, index=ranked.index)
+    if earth_values is not None and moon_value is not None and np.isfinite(moon_value):
+        out = (ranked["patch_id"].map(earth_values).astype(float) - moon_value).abs() * scale
+    return out
+
+
+def _add_components(
     ranked: pd.DataFrame,
     moon_percentile: float | None,
     earth_thermal: pd.DataFrame | None,
     w_thermal: float,
+    moon_illumination: float | None = None,
+    earth_illumination: pd.DataFrame | None = None,
+    w_illum: float = 0.0,
 ) -> pd.DataFrame:
-    """Dodaj termiczną odległość i połącz ją z terenową; sortuj po nowej sumie."""
+    """Dodaj składniki termiczny i oświetleniowy; połącz z terenowym i sortuj po nowej sumie.
+
+    Brakujący składnik wypada z sumy (jego waga wraca do pozostałych), nigdy nie jest zerem.
+    """
     ranked = ranked.rename(columns={"total_distance": "terrain_distance"})
-    pct = pd.Series(np.nan, index=ranked.index)
-    if earth_thermal is not None and moon_percentile is not None and np.isfinite(moon_percentile):
-        lookup = earth_thermal.set_index("patch_id")["thermal_range_percentile"]
-        pct = ranked["patch_id"].map(lookup).astype(float)
-    ranked["thermal_distance"] = (pct - moon_percentile).abs() * THERMAL_DISTANCE_SCALE if pct.notna().any() else np.nan
-    missing = ranked["thermal_distance"].isna()
-    ranked["thermal_status"] = np.where(missing, "missing", "ok")
-    ranked["total_distance"] = np.where(
-        missing,
-        ranked["terrain_distance"],
-        (1.0 - w_thermal) * ranked["terrain_distance"] + w_thermal * ranked["thermal_distance"],
-    )
+    num = (1.0 - w_thermal - w_illum) * ranked["terrain_distance"]
+    den = pd.Series(1.0 - w_thermal - w_illum, index=ranked.index)
+
+    def add(name: str, weight: float, dist: pd.Series) -> None:
+        nonlocal num, den
+        ranked[f"{name}_distance"] = dist
+        ok = dist.notna()
+        ranked[f"{name}_status"] = np.where(ok, "ok", "missing")
+        num = num + weight * dist.fillna(0.0)
+        den = den + weight * ok
+
+    if w_thermal > 0.0:
+        lookup = earth_thermal.set_index("patch_id")["thermal_range_percentile"] if earth_thermal is not None else None
+        add("thermal", w_thermal, _component_distance(ranked, moon_percentile, lookup, THERMAL_DISTANCE_SCALE))
+    if w_illum > 0.0:
+        lookup, scale = None, 1.0
+        if earth_illumination is not None:
+            lookup = earth_illumination.set_index("patch_id")[ILLUM_VALUE_COLUMN]
+            std = float(lookup.std())
+            scale = 1.0 / std if np.isfinite(std) and std > 0 else 1.0
+        dist = _component_distance(ranked, moon_illumination, lookup, scale)
+        add("illumination", w_illum, dist.clip(upper=OUT_OF_RANGE_Z))
+    ranked["total_distance"] = np.where(den > 1e-12, num / den.where(den > 1e-12, 1.0), ranked["terrain_distance"])
     return ranked.sort_values("total_distance", kind="stable")
 
 
@@ -143,6 +172,10 @@ def find_analogs(
     moon_thermal_percentile: float | None = None,
     earth_thermal: pd.DataFrame | None = None,
     w_thermal: float = 0.0,
+    moon_illumination: float | None = None,
+    earth_illumination: pd.DataFrame | None = None,
+    w_illum: float = 0.0,
+    feature_weights: Mapping[str, float] | None = None,
 ) -> pd.DataFrame:
     """Najbardziej podobne łatki Ziemi do łatki Księżyca (mniejsza odległość = większe podobieństwo).
 
@@ -153,9 +186,17 @@ def find_analogs(
     Opcjonalnie składnik termiczny (``w_thermal`` > 0): ``earth_thermal`` ma kolumny
     ``patch_id`` i ``thermal_range_percentile``. Gdy brakuje danych termicznych (Księżyca albo
     łatki Ziemi), ``total_distance`` = odległość terenowa, a ``thermal_status`` = "missing".
+    Analogicznie oświetlenie (``w_illum`` > 0): ``earth_illumination`` ma kolumny ``patch_id`` i
+    ``solar_visibility_fraction``; odległość = |różnica| / std Ziemi (obcięta do 3). Waga terenu
+    to ``1 - w_thermal - w_illum``. ``feature_weights``: względne ważności 12 cech terenu
+    (patrz ``scoring.distances``); zastępuje podział ``w_slope``.
     """
     if not 0.0 <= w_thermal <= 1.0:
         raise ValueError(f"w_thermal musi być w [0, 1], jest {w_thermal}")
+    if not 0.0 <= w_illum <= 1.0:
+        raise ValueError(f"w_illum musi być w [0, 1], jest {w_illum}")
+    if w_thermal + w_illum > 1.0 + 1e-9:
+        raise ValueError(f"w_thermal + w_illum musi być <= 1, jest {w_thermal + w_illum}")
     if top_k < 1:
         raise ValueError(f"top_k musi być >= 1, jest {top_k}")
     if max_per_region is not None and max_per_region < 1:
@@ -165,19 +206,23 @@ def find_analogs(
             raise ValueError(f"earth_index nie ma kolumny {col!r}")
 
     scaler = fit_scaler(earth_index)
-    dist = distances(moon_features, earth_index, scaler, w_slope)
+    dist = distances(moon_features, earth_index, scaler, w_slope, feature_weights)
     ranked = pd.concat(
         [earth_index[["patch_id", "region", "center_lat", "center_lon"]], dist], axis=1
     ).sort_values("total_distance", kind="stable")
 
-    if w_thermal > 0.0:
-        ranked = _add_thermal(ranked, moon_thermal_percentile, earth_thermal, w_thermal)
+    if w_thermal > 0.0 or w_illum > 0.0:
+        ranked = _add_components(
+            ranked, moon_thermal_percentile, earth_thermal, w_thermal,
+            moon_illumination, earth_illumination, w_illum,
+        )
 
     if max_per_region is not None:
         ranked = ranked.groupby("region", sort=False).head(max_per_region)
     result = ranked.head(top_k).reset_index(drop=True)
     result.insert(0, "rank", range(1, len(result) + 1))
-    result = result[RESULT_COLUMNS + [c for c in THERMAL_RESULT_COLUMNS if c in result.columns]]
+    extra = THERMAL_RESULT_COLUMNS + ILLUM_RESULT_COLUMNS
+    result = result[RESULT_COLUMNS + [c for c in extra if c in result.columns]]
 
     z_moon = transform(moon_features, scaler)[0]
     result.attrs["out_of_range"] = [

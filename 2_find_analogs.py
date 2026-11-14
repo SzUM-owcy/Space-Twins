@@ -14,10 +14,13 @@ import pandas as pd
 
 from config import (
     DATA_DIR,
+    ILLUM_EARTH_PATH,
+    ILLUM_MOON_PATH,
     OUTPUT_DIR,
     THERMAL_EARTH_PATH,
     THERMAL_MOON_PATH,
     THERMAL_MOON_REFERENCE_PATH,
+    W_ILLUM_DEFAULT,
     W_THERMAL_DEFAULT,
 )
 from src.morphometry import FEATURE_NAMES
@@ -26,6 +29,15 @@ from src.query import find_analogs, moon_features_for
 EARTH_INDEX = DATA_DIR / "earth_index.csv"
 MOON_INDEX = DATA_DIR / "moon_index.csv"
 OUTPUT_PATH = OUTPUT_DIR / "latest_query.json"
+
+
+def parse_feature_weights(parser: argparse.ArgumentParser, text: str | None) -> dict | None:
+    if not text:
+        return None
+    try:
+        return {k.strip(): float(v) for k, v in (item.split("=") for item in text.split(","))}
+    except ValueError:
+        parser.error("--feature-weights: oczekiwano NAME=WARTOŚĆ,NAME=WARTOŚĆ")
 
 
 def parse_args() -> argparse.Namespace:
@@ -44,7 +56,18 @@ def parse_args() -> argparse.Namespace:
         "--w-thermal", type=float, default=W_THERMAL_DEFAULT,
         help="waga składnika termicznego w [0, 1] (0 = tylko teren); działa, gdy są dane termiczne",
     )
+    p.add_argument(
+        "--w-illum", type=float, default=W_ILLUM_DEFAULT,
+        help="waga składnika oświetlenia w [0, 1] (0 = wyłączony); waga terenu = 1 - w_thermal - w_illum",
+    )
+    p.add_argument(
+        "--feature-weights", default=None, metavar="NAME=W,...",
+        help="względne ważności cech terenu, np. slope_p50=3,rms_height=2 (pominięte = 1; zastępuje --w-slope)",
+    )
     args = p.parse_args()
+    args.feature_weights = parse_feature_weights(p, args.feature_weights)
+    if args.w_thermal + args.w_illum > 1.0:
+        p.error("--w-thermal + --w-illum musi być <= 1")
     if (args.lat is None) != (args.lon is None):
         p.error("--lat i --lon podaje się razem")
     return args
@@ -96,12 +119,35 @@ def moon_thermal(args: argparse.Namespace, moon: dict) -> dict:
     return info
 
 
+def moon_illumination(args: argparse.Namespace, moon: dict) -> dict:
+    """Ułamek widoczności Słońca łatki Księżyca (z tabeli albo na żywo: LOLA + SPICE)."""
+    info = {"solar_visibility_fraction": None, "solar_visibility_astro": None}
+    try:
+        if args.site is not None:
+            if ILLUM_MOON_PATH.exists():
+                table = pd.read_csv(ILLUM_MOON_PATH).set_index("patch_id")
+                if moon["patch_id"] in table.index:
+                    row = table.loc[moon["patch_id"]]
+                    info = {k: None if pd.isna(row[k]) else float(row[k]) for k in info}
+            return info
+        from src.illumination_live import moon_illumination_for
+
+        res = moon_illumination_for(args.lat, args.lon)
+        info["solar_visibility_fraction"] = None if res["fraction"] != res["fraction"] else float(res["fraction"])
+        info["solar_visibility_astro"] = float(res["astro"])
+    except Exception as err:  # no data: fall back to the other components
+        print(f"UWAGA: brak danych oświetlenia Księżyca ({err})", file=sys.stderr)
+    return info
+
+
 def main() -> None:
     args = parse_args()
     try:
         moon = moon_patch_record(args)
         thermal = moon_thermal(args, moon)
         earth_thermal = pd.read_csv(THERMAL_EARTH_PATH) if THERMAL_EARTH_PATH.exists() else None
+        illum = moon_illumination(args, moon)
+        earth_illum = pd.read_csv(ILLUM_EARTH_PATH) if ILLUM_EARTH_PATH.exists() else None
         result = find_analogs(
             moon["features"],
             pd.read_csv(EARTH_INDEX),
@@ -111,6 +157,10 @@ def main() -> None:
             moon_thermal_percentile=thermal["thermal_range_percentile"],
             earth_thermal=earth_thermal,
             w_thermal=args.w_thermal,
+            moon_illumination=illum["solar_visibility_fraction"],
+            earth_illumination=earth_illum,
+            w_illum=args.w_illum,
+            feature_weights=args.feature_weights,
         )
     except ValueError as err:
         sys.exit(f"Błąd: {err}")
@@ -120,6 +170,9 @@ def main() -> None:
         "w_slope": args.w_slope,
         "w_thermal": args.w_thermal,
         "moon_thermal": thermal,
+        "w_illum": args.w_illum,
+        "feature_weights": args.feature_weights,
+        "moon_illumination": illum,
         "top_k": args.top_k,
         "max_per_region": args.max_per_region or None,
         "out_of_range": result.attrs["out_of_range"],
