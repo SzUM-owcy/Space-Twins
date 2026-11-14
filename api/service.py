@@ -14,6 +14,7 @@ from config import (
     DATA_DIR,
     ILLUM_EARTH_PATH,
     COMPOSITION_EARTH_LITHOLOGY_PATH,
+    PRACTICALITY_PATH,
     COMPOSITION_EARTH_MINERALS_PATH,
     COMPOSITION_EARTH_PATH,
     COMPOSITION_MOON_PATH,
@@ -31,6 +32,7 @@ from config import (
 )
 from src.morphometry import extract_patch_features
 from src.plotting import load_earth_patch
+from src.practicality import practicality_blocks
 from src.query import OUT_OF_RANGE_Z, find_analogs, moon_patch_for, rank_stability
 from src.scoring import fit_scaler, transform
 
@@ -309,6 +311,11 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
     result = find_analogs(features, earth, top_k=req.top_k, **find_kwargs)
     stability = rank_stability(features, earth, result, req.stability_runs, **find_kwargs) if req.stability_runs else None
     by_id = earth.set_index("patch_id")
+    blocks = {}
+    if req.include_practicality:
+        table = _table(PRACTICALITY_PATH)
+        if table is not None:
+            blocks = practicality_blocks(table, result["patch_id"], result["total_distance"])
     items = []
     for row in result.itertuples():
         earth_row = by_id.loc[row.patch_id]
@@ -348,6 +355,8 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
                 thermal_quality=_opt(row, "thermal_quality"),
                 illumination_quality=_opt(row, "illumination_quality"),
                 stability=None if stability is None else float(stability[row.patch_id]),
+                practicality=blocks.get(row.patch_id, {}).get("practicality"),
+                constraints=blocks.get(row.patch_id, {}).get("constraints"),
                 features=earth_features,
                 z_scores=_z_scores(earth_features),
             )

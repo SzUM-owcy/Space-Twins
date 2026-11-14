@@ -149,3 +149,55 @@ def score_table(df: pd.DataFrame) -> pd.DataFrame:
         df[class_col] = classes.where(~df["hard_excluded"], EXCLUDED_LABEL)
     df["practicality_version"] = PRACTICALITY_VERSION
     return df[PRACTICALITY_COLUMNS]
+
+
+PRACTICALITY_FIELDS = (
+    "access_score", "buildability_score", "emergency_support_score", "infrastructure_score", "population_score",
+    "isolation_logistics_penalty", "population_impact_penalty", "population_25km", "grid_source",
+    "field_campaign_score", "field_cost_class", "facility_score", "facility_cost_class",
+    "practicality_completeness", "practicality_confidence",
+)
+
+
+def pareto_optimal(distance: np.ndarray, score: np.ndarray) -> np.ndarray:
+    """True where no other candidate has a lower-or-equal analog distance AND a higher-or-equal score (one strictly)."""
+    distance, score = np.asarray(distance, float), np.asarray(score, float)
+    out = np.zeros(len(distance), dtype=bool)
+    for i in range(len(distance)):
+        if not (np.isfinite(distance[i]) and np.isfinite(score[i])):
+            continue
+        better = (distance <= distance[i]) & (score >= score[i]) & ((distance < distance[i]) | (score > score[i]))
+        out[i] = not better.any()
+    return out
+
+
+def _clean(value):
+    if isinstance(value, (np.floating, float)):
+        return None if not np.isfinite(value) else float(value)
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.bool_):
+        return bool(value)
+    return value
+
+
+def practicality_blocks(table: pd.DataFrame, patch_ids, analog_distance) -> dict[str, dict]:
+    """Per patch: separate ``practicality`` and ``constraints`` blocks plus Pareto flags among the given candidates.
+
+    The scientific distance is only used for the Pareto flags; it is never altered.
+    """
+    rows = table.set_index("patch_id").reindex(list(patch_ids))
+    p_field = pareto_optimal(analog_distance, rows["field_campaign_score"].to_numpy())
+    p_fac = pareto_optimal(analog_distance, rows["facility_score"].to_numpy())
+    blocks = {}
+    for i, (pid, row) in enumerate(rows.iterrows()):
+        if row.isna().all():
+            continue
+        practicality = {k: _clean(row[k]) for k in PRACTICALITY_FIELDS}
+        practicality["pareto_field"] = bool(p_field[i])
+        practicality["pareto_facility"] = bool(p_fac[i])
+        constraints = {k: row[k] if isinstance(row[k], str) else "missing" for k in PRACTICALITY_FLAG_COLUMNS}
+        constraints["hard_excluded"] = bool(row["hard_excluded"]) if pd.notna(row["hard_excluded"]) else False
+        constraints["exclusion_reasons"] = [r for r in str(row["exclusion_reasons"]).split(";") if r and r != "nan"]
+        blocks[pid] = {"practicality": practicality, "constraints": constraints}
+    return blocks

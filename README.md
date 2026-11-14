@@ -58,6 +58,11 @@ relative to other patches of its own body.
 thermal-infrared emissivity ratio; Moon: Diviner Christiansen Feature wavelength. It is a coarse proxy, not
 mineral or chemical equality, and the Moon polar sites (beyond ±70°) have no value.
 
+5. **Practicality** (separate from similarity, opt-in): how hard/expensive a simulation would be at an Earth patch -
+access, buildability, emergency support, infrastructure and population scores plus constraint flags (protected
+areas, World Heritage, land rights, habitat, water, hazards, security). It never changes the scientific
+score; see [`docs/practicality.md`](docs/practicality.md). Use `--practicality` (CLI) or `include_practicality` (API).
+
 All optional features live in side
 tables keyed by `patch_id`, so the strict 17-column index CSVs ([`docs/CONTRACT.md`](docs/CONTRACT.md)) are
 unchanged and terrain-only queries keep working.
@@ -247,7 +252,8 @@ as `|Δ percentile| / std(Earth)`, capped at 3. Illumination distance is
 | `config.py` | Geometry, nodata/scale, feature names, data paths, thermal/illumination constants |
 | `0_download_earth.py`, `1_build_index.py`, `1b_build_moon_index.py` | DEM download and Earth/Moon index builders |
 | `1c_build_thermal.py`, `1d_build_illumination.py`, `1e_build_composition.py` | Side-table builders |
-| `2_find_analogs.py`, `3_plot_match.py` | CLI query and comparison plot |
+| `1f_build_practicality.py` | Practicality side table (`data/practicality_earth.csv`) |
+| `2_find_analogs.py`, `3_plot_match.py`, `3b_plot_pareto.py` | CLI query, comparison plot, science-vs-practicality Pareto plot |
 | `4_validate_illumination.py` | Polar illumination validation against NASA's LOLA visibility map |
 | `5_analyze_features.py` | Terrain-feature diagnostics, scoring-scheme comparison and Earth coverage gaps |
 | `app.py` | Streamlit app |
@@ -256,6 +262,7 @@ as `|Δ percentile| / std(Earth)`, capped at 3. Illumination distance is
 | `src/scoring.py`, `src/query.py` | Scaling, distances, `find_analogs`, live Moon extraction |
 | `src/thermal.py`, `src/earth_temperature.py`, `src/moon_temperature.py`, `src/moon_polar_thermal.py` | Thermal feature |
 | `src/composition.py`, `src/earth_composition.py`, `src/earth_lithology.py`, `src/minerals.py`, `src/moon_composition.py` | Composition proxy |
+| `src/practicality.py`, `src/practicality_data.py`, `src/practicality_flags.py`, `src/buildability.py` | Practicality scores, open-data loaders, constraint flags, facility-core search |
 | `src/illumination.py`, `src/earth_solar.py`, `src/moon_solar.py`, `src/illumination_live.py` | Illumination feature |
 | `src/contracts.py`, `src/plotting.py` | CSV schema validation, plots |
 | `dem_crosscheck.py` | NASADEM vs Copernicus DEM comparison (`docs/dem_crosscheck.md`) |
@@ -421,6 +428,9 @@ breaks down), not as a single "Moon-likeness" score.
 Working end to end: Earth index (73 regions) and Moon index (18 sites) → scoring with adjustable weights →
 top-K analogs → CLI and HTTP API. The Streamlit app (`app.py`) currently runs terrain-only scoring and has no
 controls for the thermal, illumination, composition or per-feature weights yet.
+
+Practicality (`docs/practicality.md`) is built for all 5009 Earth patches (grid distance is OSM for 15 regions, estimated
+elsewhere); the Streamlit app does not show it or the Pareto view yet.
 
 Next: build the Earth composition table (`1e_build_composition.py earth`, needs an Earthdata login) and run its
 validation, validate thermal and Earth illumination against independent sources, a Moon patch-scale
