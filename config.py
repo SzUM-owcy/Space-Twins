@@ -38,3 +38,26 @@ FEATURE_NAMES = SLOPE_FEATURES + SHAPE_FEATURES
 ID_COLUMNS = ["patch_id", "source", "region", "center_lat", "center_lon"]
 RECORD_COLUMNS = ID_COLUMNS + FEATURE_NAMES
 VALID_SOURCES = ("NASADEM", "COPDEM", "LOLA")
+
+# Thermal feature (side tables keyed by patch_id; the CONTRACT index columns are untouched).
+THERMAL_EARTH_PATH = DATA_DIR / "thermal_earth.csv"
+THERMAL_MOON_PATH = DATA_DIR / "thermal_moon.csv"
+THERMAL_REFERENCE_DIR = DATA_DIR / "processed"
+THERMAL_EARTH_REFERENCE_PATH = THERMAL_REFERENCE_DIR / "earth_thermal_reference.json"
+THERMAL_MOON_REFERENCE_PATH = THERMAL_REFERENCE_DIR / "moon_thermal_reference.json"
+THERMAL_COLUMNS = [
+    "patch_id", "surface_temperature_range_k", "thermal_valid_fraction",
+    "thermal_valid_observations", "thermal_dataset", "thermal_period",
+    "thermal_range_percentile",
+]
+THERMAL_REFERENCE_START = "2024-01-01"
+THERMAL_REFERENCE_END = "2024-12-31"
+THERMAL_EARTH_COLLECTION = "modis-11A2-061"  # Terra (MOD) + Aqua (MYD), 1 km, 8-day
+THERMAL_MIN_OBS = 100  # valid Earth observations per pixel (of ~184 per year); fewer = seasonal bias (polar night, cloud)
+THERMAL_MOON_MIN_BINS = 40  # of 96 local-time bins; GCP cells have scattered sampling gaps
+THERMAL_MIN_VALID_FRACTION = 0.70
+THERMAL_MOON_GCP_URL = (
+    "https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_gcp"
+)
+THERMAL_MOON_GRID_STEP_DEG = 5.0  # reference grid of lunar cells for the percentile
+W_THERMAL_DEFAULT = 0.2

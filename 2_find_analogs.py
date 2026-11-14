@@ -12,7 +12,14 @@ import sys
 
 import pandas as pd
 
-from config import DATA_DIR, OUTPUT_DIR
+from config import (
+    DATA_DIR,
+    OUTPUT_DIR,
+    THERMAL_EARTH_PATH,
+    THERMAL_MOON_PATH,
+    THERMAL_MOON_REFERENCE_PATH,
+    W_THERMAL_DEFAULT,
+)
 from src.morphometry import FEATURE_NAMES
 from src.query import find_analogs, moon_features_for
 
@@ -32,6 +39,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--max-per-region", type=int, default=1,
         help="ile łatek z jednego regionu (domyślnie 1; 0 = bez limitu)",
+    )
+    p.add_argument(
+        "--w-thermal", type=float, default=W_THERMAL_DEFAULT,
+        help="waga składnika termicznego w [0, 1] (0 = tylko teren); działa, gdy są dane termiczne",
     )
     args = p.parse_args()
     if (args.lat is None) != (args.lon is None):
@@ -60,16 +71,46 @@ def moon_patch_record(args: argparse.Namespace) -> dict:
     }
 
 
+def moon_thermal(args: argparse.Namespace, moon: dict) -> dict:
+    """Percentyl zakresu temperatur łatki Księżyca (z tabeli albo na żywo z Diviner GCP)."""
+    info = {"surface_temperature_range_k": None, "thermal_range_percentile": None}
+    if not THERMAL_MOON_REFERENCE_PATH.exists():
+        return info
+    if args.site is not None:
+        if THERMAL_MOON_PATH.exists():
+            table = pd.read_csv(THERMAL_MOON_PATH).set_index("patch_id")
+            if moon["patch_id"] in table.index:
+                row = table.loc[moon["patch_id"]]
+                info["surface_temperature_range_k"] = float(row["surface_temperature_range_k"])
+                info["thermal_range_percentile"] = float(row["thermal_range_percentile"])
+        return info
+    try:
+        from src.moon_temperature import moon_cell_stats
+        from src.thermal import empirical_cdf, load_reference
+
+        rng = moon_cell_stats(args.lat, args.lon)["surface_temperature_range_k"]
+        info["surface_temperature_range_k"] = float(rng)
+        info["thermal_range_percentile"] = float(empirical_cdf(rng, load_reference(THERMAL_MOON_REFERENCE_PATH)))
+    except Exception as err:  # offline or no data: fall back to terrain only
+        print(f"UWAGA: brak danych termicznych Księżyca ({err})", file=sys.stderr)
+    return info
+
+
 def main() -> None:
     args = parse_args()
     try:
         moon = moon_patch_record(args)
+        thermal = moon_thermal(args, moon)
+        earth_thermal = pd.read_csv(THERMAL_EARTH_PATH) if THERMAL_EARTH_PATH.exists() else None
         result = find_analogs(
             moon["features"],
             pd.read_csv(EARTH_INDEX),
             top_k=args.top_k,
             w_slope=args.w_slope,
             max_per_region=args.max_per_region or None,
+            moon_thermal_percentile=thermal["thermal_range_percentile"],
+            earth_thermal=earth_thermal,
+            w_thermal=args.w_thermal,
         )
     except ValueError as err:
         sys.exit(f"Błąd: {err}")
@@ -77,6 +118,8 @@ def main() -> None:
     payload = {
         "moon": moon,
         "w_slope": args.w_slope,
+        "w_thermal": args.w_thermal,
+        "moon_thermal": thermal,
         "top_k": args.top_k,
         "max_per_region": args.max_per_region or None,
         "out_of_range": result.attrs["out_of_range"],
