@@ -51,7 +51,14 @@ differences (smaller = more similar). Moon features outside the Earth range (|z|
 relative to other patches of its own body.
 
 3. **Solar illumination** (optional, experimental):
-`solar_visibility_fraction`, the share of time the Sun is above the terrain horizon. Both live in side
+`solar_visibility_fraction`, the share of time the Sun is above the terrain horizon.
+
+4. **Mafic–felsic composition proxy** (optional, experimental, opt-in): `mafic_felsic_percentile`
+(0 = relatively felsic / anorthositic, 1 = relatively mafic / basaltic within its own body). Earth: ASTER GED
+thermal-infrared emissivity ratio; Moon: Diviner Christiansen Feature wavelength. It is a coarse proxy, not
+mineral or chemical equality, and the Moon polar sites (beyond ±70°) have no value.
+
+All optional features live in side
 tables keyed by `patch_id`, so the strict 17-column index CSVs ([`docs/CONTRACT.md`](docs/CONTRACT.md)) are
 unchanged and terrain-only queries keep working.
 
@@ -88,8 +95,10 @@ and are not proof of environmental equivalence. See the limitations below.
 |---|---|---|---|
 | **Terrain** | Earth | [NASADEM](https://www.earthdata.nasa.gov/data/catalog/lpcloud-nasadem-hgt-001) (SRTM-derived, 1″ ≈ 30 m, surface model incl. canopy) for 51 regions; [Copernicus DEM GLO-30](https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-30) (30 m) for 8 regions. Tiles come from the Planetary Computer and were cross-checked in `docs/dem_crosscheck.md` | Elevation → 10 km patches → 12 terrain features |
 | | Moon | [LRO LOLA global DEM, 118 m/px](https://astrogeology.usgs.gov/search/map/moon_lro_lola_dem_118m) (USGS Astrogeology, simple cylindrical, mostly interpolated between altimeter tracks); optional 20 m south-polar product (`ldem_80s_20m`, [PDS Geosciences](https://pds-geosciences.wustl.edu/missions/lro/lola.htm)) | Elevation → 10 km patches → 12 terrain features |
-| **Thermal range** | Earth | [MODIS MOD11A2/MYD11A2 v061](https://lpdaac.usgs.gov/products/mod11a2v061/) land surface temperature (Terra + Aqua, 1 km, 8-day composites, day and night layers + QA flags), read as COGs from the [Planetary Computer](https://planetarycomputer.microsoft.com/dataset/modis-11A2-061); year 2024 | How far the temperature swings between a hot and a cold reading, per pixel |
-| | Moon | [LRO Diviner](https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/) Global Cumulative Product, `tbol` bolometric temperature (0.5° cells, 96 local-time bins, 2009–2015 average) | The same hot-vs-cold swing across the 96 times of the lunar day |
+| **Thermal range** | Earth | [MODIS MOD11A2/MYD11A2 v061](https://lpdaac.usgs.gov/products/mod11a2v061/) land surface temperature (Terra + Aqua, 1 km, 8-day composites, day and night layers + QA flags), read as COGs from the [Planetary Computer](https://planetarycomputer.microsoft.com/dataset/modis-11A2-061); year 2024 | The day–night swing per 8-day period (max − min of up to 4 overpass samples), median over the year |
+| | Moon | [LRO Diviner](https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/) Global Cumulative Product, `tbol` bolometric temperature (0.5° cells, 96 local-time bins, 2009–2015 average); the 4 south-polar sites use the [Polar Cumulative Product](https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_pcp/) (240 m, 0.25 h bins, summer and winter, streamed with HTTP range requests) | The hot-vs-cold swing across the lunar day |
+| **Composition** | Earth | [ASTER Global Emissivity Dataset AG100.003](https://lpdaac.usgs.gov/products/ag100v003/) (100 m, 2000–2008 clear-sky; bands 10–14, NDVI, land/water map, observation count; **needs a free NASA Earthdata login**) | Mafic Index `e12 / e13` (Quartz Index `e11² / (e10·e12)` only as a confounder flag), patch median over bare land pixels |
+| | Moon | [Diviner Christiansen Feature map `DIVGLOB1701_CX3`](https://zenodo.org/records/4558235) (Lucey et al. 2021; 32 pixels/degree, ±70° latitude, 206 MB, no login) | CF wavelength: higher = more mafic, lower = more felsic / anorthositic |
 | **Solar illumination** | Earth | NASADEM / Copernicus DEM (terrain horizon, as above) + [pvlib](https://pvlib-python.readthedocs.io/) solar position (NREL SPA), hourly 2024 | Share of time the Sun is above the terrain horizon |
 | | Moon | LOLA 118 m DEM (terrain horizon, 40 km window) + [NASA/JPL SPICE](https://naif.jpl.nasa.gov/naif/) ephemerides (`de440s.bsp`, `pck00011.tpc`, `naif0012.tls`), same hourly grid | Share of time the Sun is above the terrain horizon |
 
@@ -101,13 +110,13 @@ the [80 m south-polar LOLA DEM `LDEM_80S_80MPP_ADJ`](https://pgda.gsfc.nasa.gov/
 
 | Item | Content |
 |---|---|
-| Earth index | `data/earth_index.csv`: **4269 patches, 59 regions** (51 NASADEM + 8 Copernicus DEM; 8 validation regions flagged in `data/regions.csv`; 12 exploratory regions use overlapping patches via `stride_km`) |
+| Earth index | `data/earth_index.csv`: **5009 patches, 73 regions** (63 NASADEM + 10 Copernicus DEM; 8 validation regions flagged in `data/regions.csv`; small regions use overlapping patches via `stride_km`) |
 | Moon index | `data/moon_index.csv`: **18 sites** (Apollo, maria, highlands, craters, 4 polar) + `data/patches/moon/*.npy` |
 | Earth patches | `data/patches/earth_npz/{region}.npz`, one small archive per region |
-| Side tables | `data/thermal_*.csv`, `data/illumination_*.csv`, `data/processed/*_thermal_reference.json` |
+| Side tables | `data/thermal_*.csv`, `data/illumination_*.csv`, `data/composition_*.csv`, `data/processed/*_reference.json` |
 
 Not committed (gitignored): raw DEM tiles (`data/nasadem`, `data/copdem`), LOLA rasters (`data/lola/` or
-`moon/data/`; global 118 m is 8.5 GB; the 20 m south-polar DEM is only needed for live terrain queries below 80°S), SPICE kernels (`data/spice/`) and
+`moon/data/`; global 118 m is 8.5 GB; the 20 m south-polar DEM is only needed for live terrain queries below 80°S), SPICE kernels (`data/spice/`), the Diviner CF map and ASTER GED tiles (`data/composition/`, `data/aster_ged/`) and
 the polar validation rasters (`data/validation/`, ~230 MB).
 
 ---
@@ -157,13 +166,15 @@ Every comparison component is adjustable (CLI flags and the API request fields o
 |---|---|
 | `--w-slope` / `w_slope` | slope vs shape split of the terrain distance (default 0.5) |
 | `--feature-weights slope_p50=3,rms_height=2,elev_skew=0` / `feature_weights` | relative importance of each of the 12 terrain features (omitted = 1; replaces `w_slope`; terrain distance becomes the weighted RMS) |
-| `--w-thermal` / `w_thermal` | share of the thermal component (CLI default 0.2, API default 0) |
+| `--w-thermal` / `w_thermal` | share of the thermal component (CLI default 0.1, API default 0) |
 | `--w-illum` / `w_illum` | share of the illumination component (CLI default 0.1, API default 0) |
+| `--w-composition` / `w_composition` | share of the composition component (default 0, opt-in; needs the Earth ASTER GED table) |
+| `--stability N` / `stability_runs` | N noisy re-rankings of the Moon z-scores; adds `stability` (share of runs in which the region stays in the top K) |
 
-Terrain share = `1 - w_thermal - w_illum`. A component with missing data for the query or a patch drops out
+Terrain share = `1 - w_thermal - w_illum - w_composition`. A component with missing data for the query or a patch drops out
 of the sum (`*_status = "missing"`), it is never treated as zero. With both weights 0 the result is the
 pure terrain ranking. All components are shown separately (`terrain_distance`, `thermal_distance`,
-`illumination_distance`) so a ranking stays explainable. The default weights are experimental, not validated
+`illumination_distance`, `composition_distance`) with a good / moderate / poor label each (`*_quality`: distance < 0.5, < 1.0, else poor) so a ranking stays explainable. The default weights are experimental, not validated
 scientific constants.
 
 ---
@@ -189,24 +200,37 @@ uv run --frozen python 1c_build_thermal.py finalize            # versioned refer
 # Illumination side tables
 uv run --frozen python 1d_build_illumination.py earth          # ~1 min, resumable per region
 uv run --frozen python 1d_build_illumination.py moon
+
+# Thermal, south-polar Moon sites (Diviner PCP, streamed; adds data/thermal_moon_polar.csv)
+uv run --frozen python 1c_build_thermal.py moon-polar
+
+# Composition side tables (Moon: CF map downloaded from Zenodo; Earth: needs ~/.netrc Earthdata login or .h5 tiles in data/aster_ged/)
+uv run --frozen python 1e_build_composition.py moon
+uv run --frozen python 1e_build_composition.py earth
+uv run --frozen python 1e_build_composition.py validate        # outputs/composition_validation.{csv,png}
+uv run --frozen python 1e_build_composition.py finalize        # versioned references + percentiles
 ```
 
 ### How the optional features are computed
 
 | | Earth | Moon |
 |---|---|---|
-| **Thermal range** | MODIS 11A2 v061 (Terra + Aqua, 1 km, day + night, 2024) via Planetary Computer: per-pixel temperature swing (see below), median over the patch | LRO Diviner Global Cumulative Product `tbol` (0.5° cell, 96 local-time bins): temperature swing (see below) |
+| **Thermal range** | MODIS 11A2 v061 (Terra + Aqua, 1 km, day + night, 2024) via Planetary Computer: day–night swing per 8-day period, median over the year and over the patch | LRO Diviner Global Cumulative Product `tbol` (0.5° cell, 96 local-time bins), or the Polar Cumulative Product (240 m; mean of the summer and winter swing) for the 4 polar sites |
+| **Composition** | ASTER GED: Mafic Index `e12/e13`, median over bare land pixels (NDVI ≤ 0.2, land, ≥ 3 observations, ≥ 30 % valid) | Diviner CF wavelength, median of the patch window (about 10 × 10 pixels) |
 | **Illumination** | NASADEM/COPDEM terrain horizon (20 km window at 250 m) + pvlib Sun positions, hourly 2024 | LOLA horizon (40 km window) + NASA SPICE (DE440s) Sun positions, one Sun track per observer point |
 
-**Temperature swing ("P95 − P05").** For each place we collect all valid temperature readings (day and night
-over the year on Earth, the 96 times of the lunar day on the Moon), sort them, and take the value that is
-higher than 95 % of the readings (the "typical hot" value) minus the value that is higher than only 5 % of
-them (the "typical cold" value). Example: typical hot 45 °C, typical cold 5 °C → swing 40 K. Using the 95th
-and 5th percentiles instead of the single hottest and coldest reading keeps one bad pixel or outlier from
-distorting the result.
+**Temperature swing.** On Earth, for each 8-day period we take the hottest and the coldest of the (up to
+four) day and night overpass readings (Terra about 10:30 / 22:30, Aqua about 13:30 / 01:30) and subtract
+them; the pixel value is the median of these swings over the year. Four readings per day miss the true daily
+maximum and minimum, so this is a lower bound of the real swing, but it keeps seasonal variation out of the
+value. On the Moon we sort the readings over the lunar day (local-time bins), take the "typical hot" value
+(higher than 95 % of the readings) minus the "typical cold" value (higher than only 5 %), so one bad bin does
+not distort it; for the polar sites this is done separately for the summer and winter product and averaged.
 
 Thermal ranges are converted to a percentile within their own body (Earth: all valid indexed patches; Moon:
-1654 area-uniform cells on a 5° grid); the distance is `sqrt(6) · |Δ percentile|`. Illumination distance is
+1654 area-uniform cells on a 5° grid); the distance is `sqrt(6) · |Δ percentile|`. Composition values are
+converted the same way (Earth: valid bare-land patches; Moon: area-uniform 5° cells within ±70°) and compared
+as `|Δ percentile| / std(Earth)`, capped at 3. Illumination distance is
 `|Δ fraction| / std(Earth)`, capped at 3. Horizons are ray-marched (72 azimuths, curvature included) from a
 5 × 5 grid of points in the patch centre.
 
@@ -218,14 +242,16 @@ Thermal ranges are converted to a percentile within their own body (Earth: all v
 |---|---|
 | `config.py` | Geometry, nodata/scale, feature names, data paths, thermal/illumination constants |
 | `0_download_earth.py`, `1_build_index.py`, `1b_build_moon_index.py` | DEM download and Earth/Moon index builders |
-| `1c_build_thermal.py`, `1d_build_illumination.py` | Side-table builders |
+| `1c_build_thermal.py`, `1d_build_illumination.py`, `1e_build_composition.py` | Side-table builders |
 | `2_find_analogs.py`, `3_plot_match.py` | CLI query and comparison plot |
 | `4_validate_illumination.py` | Polar illumination validation against NASA's LOLA visibility map |
+| `5_analyze_features.py` | Terrain-feature diagnostics, scoring-scheme comparison and Earth coverage gaps |
 | `app.py` | Streamlit app |
 | `api/` | FastAPI backend (`main.py`, `service.py`, `schemas.py`, OpenAPI + examples) |
 | `src/raster_io.py`, `src/morphometry.py` | Shared patch extraction and the 12 terrain features |
 | `src/scoring.py`, `src/query.py` | Scaling, distances, `find_analogs`, live Moon extraction |
-| `src/thermal.py`, `src/earth_temperature.py`, `src/moon_temperature.py` | Thermal feature |
+| `src/thermal.py`, `src/earth_temperature.py`, `src/moon_temperature.py`, `src/moon_polar_thermal.py` | Thermal feature |
+| `src/composition.py`, `src/earth_composition.py`, `src/moon_composition.py` | Composition proxy |
 | `src/illumination.py`, `src/earth_solar.py`, `src/moon_solar.py`, `src/illumination_live.py` | Illumination feature |
 | `src/contracts.py`, `src/plotting.py` | CSV schema validation, plots |
 | `dem_crosscheck.py` | NASADEM vs Copernicus DEM comparison (`docs/dem_crosscheck.md`) |
@@ -266,6 +292,82 @@ uv run --frozen python 4_validate_illumination.py --horizon-km 40
 
 ---
 
+## Thermal and illumination: summary, pros and cons
+
+| | Thermal range | Solar illumination |
+|---|---|---|
+| Question | How big is the temperature swing? | How much of the time is the Sun above the local terrain horizon? |
+| Earth data | MODIS 11A2 land-surface temperature, 2024 (day–night swing) | NASADEM/COPDEM horizons + pvlib Sun, 2024 hourly |
+| Moon data | LRO Diviner bolometric temperature (0.5° cells; 240 m polar product for the 4 polar sites) | LOLA 118 m horizons + SPICE Sun, 2024 hourly |
+| Coverage | 4926 / 5009 Earth patches, 18 / 18 Moon sites | 5009 / 5009 Earth, 18 / 18 Moon |
+| Compared as | Percentile within each body | Fraction 0–1 (terrain shading) |
+| Default weight | 0.1 (CLI) | 0.1 (CLI) |
+
+### Verification across all 14 features
+
+Checked on all 5009 Earth patches and 18 Moon sites (12 terrain features + thermal + illumination).
+
+| Check | Result |
+|---|---|
+| Terrain redundancy | The 7 slope percentiles, `tri_mean`, `rms_height` and `relief_range` are strongly correlated (Spearman 0.87–0.99); 3 principal components explain 95% of terrain variance. `hypsometric_integral` and `elev_skew` are correlated with each other (−0.91). |
+| Thermal vs terrain | Weakly related: max Spearman 0.32 with any terrain feature (−0.32 with `rms_height`); 0.39 with illumination. |
+| Illumination vs terrain | Redundant on Earth: −0.86 to −0.89 with the slope/roughness features; Earth values lie mostly in 0.83–1.0. |
+| Moon outside Earth range | With the real scaler (log1p on `rms_height`, `tri_mean`, `relief_range`) only `slope_p50` (Shackleton) and `elev_skew` (Mare Serenitatis) exceed \|z\| > 3, 1 site each. The best Earth match is always close (distance ≤ 0.39), so the Earth set covers the Moon sites well. |
+| Thermal/illumination effect (mean top-10 patch overlap with terrain-only, 18 sites; 10 = no change) | Thermal 0.1: 6.4; thermal 0.2: 4.4; illumination 0.1: 7.6; thermal 0.1 + illumination 0.1: 5.9. |
+| Do terrain analogs also match on the extras? | Illumination: yes, closer than random at 16 / 18 sites (0.17 vs 0.21). Thermal: yes since the day–night swing (v2), closer at 13 / 18 sites (0.31 vs 0.37); with the earlier year-wide P95 − P05 value it was no better than chance. |
+| Result diversity | Combined top-10 lists across all Moon sites use 60 of 73 Earth regions; the 14 regions added for rugged desert, young lava and polar terrain supply 26 of 180 results. |
+
+**Thermal v2 (day–night swing) and the polar Moon values.** The Earth value no longer mixes seasonal and daily
+variation, and polar Moon sites no longer use a 15 km cell: the 240 m PCP gives Shackleton 27 K, Haworth 15 K,
+de Gerlache 23 K (permanently shadowed floors, small swing) and Malapert 194 K (sunlit massif), versus
+40 / 22 / 66 / 206 K from the 0.5° cells. Earth values (median 24 K, 4-sample lower bound) and Moon values (up to
+about 300 K) are on different scales, which is why only body-relative percentiles are compared.
+
+**Pros**
+- Thermal is a separate dimension that changes the ranking, so a result can read
+  "strong terrain analog, poor thermal analog".
+- Illumination matched NASA's LOLA average-visibility map at the poles (Spearman 0.97, 98% shadow agreement).
+- Terrain analogs are also good illumination analogs, so the two agree rather than conflict.
+- Missing data never counts as zero; weights are renormalised and the status is reported.
+- Weights (including per-feature weights) are adjustable and have a measurable effect.
+
+**Cons**
+- The terrain set is redundant (see the next section), but the default scoring already handles it: slopes
+  and shape-type features each get half of the weight.
+- Illumination mostly repeats roughness on Earth, so it is a refinement, not an independent dimension.
+- Thermal still reorders the ranking strongly (weight 0.2 keeps only 4.4 of the top 10), and its Earth value is
+  a 4-sample lower bound of the day–night swing, so keep its weight low.
+- Neither has independent validation on Earth; the illumination check covers the Moon's south pole only.
+- Shadowed polar Moon sites saturate the illumination distance, and a few patches are `missing` thermal.
+
+### Terrain features and scoring schemes (`5_analyze_features.py`)
+
+*(Numbers in this subsection were computed on the earlier 59-region index; rerun the script for the current 73 regions.)*
+
+`PYTHONPATH=. uv run --frozen python 5_analyze_features.py` writes `outputs/feature_diagnostics.csv`,
+`outputs/scoring_schemes.csv` and `outputs/coverage_gaps.csv`.
+
+- **Shape features carry real signal.** `hypsometric_integral` and `elev_skew` are robust to DEM noise
+  (Spearman 0.98 with and without 5 m of vertical noise), are the least redundant with the slope group, and
+  dropping either changes the ranking most (mean top-10 region overlap 7.3 and 7.7, versus about 9 for a
+  slope percentile). They are correlated with each other (−0.91), so together they act as one dimension.
+  They vary more within a region than between regions (eta² 0.2 versus 0.55–0.72 for slopes), which is
+  expected for local landform shape rather than noise.
+- **The low slope percentiles are the least noise-robust** (`slope_p05` 0.95 at 5 m of noise).
+- **No alternative weighting clearly beats the default** (top-10 stability under noise added to the Moon
+  z-scores): default 7.2/10, equal per-feature weights 7.2, group weights 7.2, reduced 6-feature set 6.9,
+  PCA (4 components) 6.1. Cinder Lake ranks about 7th among regions for the Apollo sites under the default,
+  equal and group schemes, and 10.6 under PCA. PCA is worse on both, so no preset was added; the default
+  `w_slope = 0.5` split stays.
+- **Earlier numbers corrected:** a previous draft computed the Moon out-of-range share without the log1p scaling
+  and so over-stated it (17%), and compared ablations against a different baseline, which over-stated the
+  effect of removing single features.
+
+**Recommendation:** keep thermal and illumination weights low (thermal at or below 0.2, illumination 0.1),
+treat both as experimental, and present results as partial analogs (what is similar and where the analogy
+breaks down), not as a single "Moon-likeness" score.
+
+
 ## Scientific scope and limitations
 
 - Only elevation-derived morphometry is the core comparison; thermal and illumination are experimental
@@ -276,9 +378,16 @@ uv run --frozen python 4_validate_illumination.py --horizon-km 40
 - LOLA 118 m is largely interpolated between altimeter tracks, so Moon slopes and TRI are slightly smoothed
   compared with Earth averaged from real 30 m data; results may favour flat analogs. NASADEM is a surface
   model (includes canopy), hence the desert/volcanic selection.
-- **Thermal:** a relative percentile, not absolute equivalence. Earth values mix seasonal and diurnal
-  variation at fixed overpass times and include an atmosphere; Moon values cover the full diurnal cycle in
-  vacuum. Polar-night or cloudy patches are `missing`; polar Moon sites match low-range Earth patches.
+- **Thermal:** a relative percentile, not absolute equivalence. The Earth swing is built from at most four
+  overpass samples per 8-day period (a lower bound) and includes an atmosphere; Moon values cover the full
+  diurnal cycle in vacuum (about 15 km cells; 240 m for the polar sites). Polar-night or cloudy patches are
+  `missing`; polar Moon sites match low-range Earth patches.
+- **Composition:** a body-relative thermal-infrared proxy (ASTER emissivity ratio vs Diviner Christiansen
+  Feature), not identical minerals or chemistry. Quartz, gypsum, salt and carbonate surfaces can look extreme on
+  Earth (quartz-rich patches get `low_quartz_confounder` confidence), and the Moon's polar sites (beyond ±70°)
+  have no value (`outside_diviner_cf_coverage`); the component then drops out. The Moon side is built and
+  checked (all 6 mare sites have a higher CF than all 3 highland sites); the Earth side needs a free Earthdata
+  login for ASTER GED and is not built yet, so `w_composition > 0` currently reports `missing` for every Earth patch.
 - **Illumination:** geometric Sun visibility only (no atmosphere, clouds or insolation). On Earth the 20 km
   window (limited by the regional DEM mosaics) truncates horizons near region edges; the Moon uses 40 km, which
   the polar validation showed is needed for large craters. Polar sites use the 118 m global LOLA product, which
@@ -290,10 +399,11 @@ uv run --frozen python 4_validate_illumination.py --horizon-km 40
 
 ## Status and future work
 
-Working end to end: Earth index (59 regions) and Moon index (18 sites) → scoring with adjustable weights →
+Working end to end: Earth index (73 regions) and Moon index (18 sites) → scoring with adjustable weights →
 top-K analogs → CLI and HTTP API. The Streamlit app (`app.py`) currently runs terrain-only scoring and has no
-controls for the thermal, illumination or per-feature weights yet.
+controls for the thermal, illumination, composition or per-feature weights yet.
 
-Next: validate thermal range against an independent source, a patch-scale (< 0.5°) Moon temperature source,
-more Earth regions, additional dimensions (mineralogy, ice/resource indicators) and Mars as a
-second target body.
+Next: build the Earth composition table (`1e_build_composition.py earth`, needs an Earthdata login) and run its
+validation, validate thermal and Earth illumination against independent sources, a Moon patch-scale
+temperature source for non-polar sites (Diviner RDR binning), more Earth regions, ice/resource indicators and Mars
+as a second target body.
