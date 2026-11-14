@@ -1,0 +1,19 @@
+patch_id,surface_temperature_range_k,thermal_valid_fraction,thermal_valid_observations,thermal_dataset,thermal_period,thermal_range_percentile
+moon_marius_hills,287.83035,0.5,48,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.7243047158403869
+moon_apollo_11,296.9839,0.5520833333333334,53,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.9866989117291415
+moon_apollo_12,295.37278,0.5104166666666666,49,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.9673518742442564
+moon_apollo_14,295.6801,0.53125,51,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.9709794437726723
+moon_apollo_15,283.34772,0.6041666666666666,58,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.6033857315598549
+moon_apollo_16,290.13378,0.5729166666666666,55,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.7950423216444982
+moon_apollo_17,285.81154,0.59375,57,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.6674727932285369
+moon_tycho,219.86753999999996,0.5520833333333334,53,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.09371221281741234
+moon_copernicus,277.28216999999995,0.5416666666666666,52,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.49939540507859737
+moon_aristarchus_crater,251.28271999999998,0.6145833333333334,59,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.23397823458282951
+moon_mare_serenitatis,283.70293,0.6041666666666666,58,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.6112454655380894
+moon_mare_imbrium,274.11235999999997,0.6145833333333334,59,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.45525997581620314
+moon_highlands_maurolycus,260.18469999999996,0.6354166666666666,61,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.3004836759371221
+moon_highlands_hipparchus,290.51415,0.5729166666666666,55,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.8095525997581621
+moon_shackleton,39.98464999999999,1.0,96,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.0006045949214026602
+moon_haworth,22.044574999999995,1.0,96,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.0006045949214026602
+moon_de_gerlache,65.8011,1.0,96,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.0006045949214026602
+moon_malapert,206.09564999999998,1.0,96,"LRO Diviner GCP tbol (0.5 deg, 96 local-time bins)",2009-07-05/2015-04-01,0.05804111245465538
