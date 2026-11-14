@@ -8,8 +8,8 @@ The project explores a simple question:
 
 moon\-analog\-lite compares elevation\-derived terrain characteristics from two datasets:
 
-- **Earth:** NASADEM elevation data
-- **Moon:** LRO/LOLA lunar topography data
+- **Earth:** NASADEM elevation data --> https://www.earthdata.nasa.gov/data/catalog/lpcloud-nasadem-hgt-001
+- **Moon:** LRO/LOLA lunar topography data --> https://astrogeology.usgs.gov/search/map/moon_lro_lola_dem_118m
 
 The first version deliberately focuses **only on terrain morphology**. The goal is to build a small, understandable end\-to\-end prototype before introducing additional dimensions such as temperature, geology, illumination, or Mars data.
 
