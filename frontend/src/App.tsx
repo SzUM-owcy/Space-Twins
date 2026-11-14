@@ -6,6 +6,7 @@ import SiteIndex from './components/SiteIndex'
 import SiteDetail from './components/SiteDetail'
 import TwinList from './components/TwinList'
 import TwinDetail from './components/TwinDetail'
+import CompareModal from './components/CompareModal'
 
 const MoonScene = lazy(() => import('./components/MoonScene'))
 
@@ -20,7 +21,12 @@ export default function App() {
   const [findError, setFindError] = useState<string | null>(null)
   const [activeRank, setActiveRank] = useState(1)
   const [hoveredRank, setHoveredRank] = useState<number | null>(null)
+  const [compareOpen, setCompareOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (mode !== 'pair') setCompareOpen(false)
+  }, [mode])
 
   useEffect(() => {
     loadMoonSites().then(setData)
@@ -29,12 +35,13 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (mode === 'pair') setMode('moon')
+      if (compareOpen) setCompareOpen(false)
+      else if (mode === 'pair') setMode('moon')
       else setSelectedId(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [mode])
+  }, [mode, compareOpen])
 
   useEffect(() => {
     // On phones the panel scrolls; bring the details of the new selection into view.
@@ -108,6 +115,7 @@ export default function App() {
               moonName={selected.name}
               moonFeatures={selected.features}
               outOfRange={twins.out_of_range}
+              onCompare={() => setCompareOpen(true)}
             />
             <TwinList
               moonName={selected.name}
@@ -126,6 +134,16 @@ export default function App() {
           </>
         )}
       </div>
+
+      {inPair && compareOpen && (
+        <CompareModal
+          moon={{ name: selected.name, lat: selected.lat, lon: selected.lon }}
+          results={results}
+          activeRank={activeRank}
+          onSelectRank={setActiveRank}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
 
       <p className="credit">
         {inPair
