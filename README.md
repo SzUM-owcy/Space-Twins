@@ -74,13 +74,28 @@ uv sync \
   --default-index https://pypi.org/simple
 ```
 
-### Run Python
+### Run the pipeline
+
+Use `--frozen` (plain `uv run` may fail to re-resolve on some platforms). Behind a proxy or on WSL set
+`REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt` for downloads.
 
 ```bash
-uv run \
-  --default-index https://pypi.org/simple \
-  python src/prepare_earth_data.py
+uv sync --frozen
+
+# Earth side: index is already committed (data/earth_index.csv + data/patches/earth_npz/); rebuild only if needed
+uv run --frozen python 1_build_index.py --dem nasadem --workers 3      # tiles are downloaded and cached
+uv run --frozen python 1_build_index.py --dem copdem
+uv run --frozen python 1_build_index.py --npz                          # pack new regions into data/patches/earth_npz/
+
+# Moon side (needs LOLA rasters in data/lola/, gitignored)
+uv run --frozen python 1b_build_moon_index.py
+
+# Query: Earth analogs of a Moon site, and the comparison plot
+uv run --frozen python 2_find_analogs.py --site marius_hills --top-k 5
+uv run --frozen python 3_plot_match.py --site marius_hills            # -> outputs/analog_comparison.png
 ```
+
+Status document for the Earth side: [src/README-personA.md](src/README-personA.md).
 
 ### Run tests
 
@@ -435,6 +450,32 @@ for the terrain\-feature fields.
 ---
 
 # 🏗️ Project Structure
+
+## Current structure
+
+| Path | Purpose |
+|---|---|
+| `config.py` | Geometry, nodata/scale, feature names, record columns, data paths (incl. LOLA) |
+| `0_download_earth.py` | NASADEM / Copernicus DEM tile download (`--dem nasadem\|copdem`) |
+| `1_build_index.py` | Earth index: 47 regions → 10 km grid → patches → features → `data/earth_index.csv`, `data/regions.csv`, `data/patches/earth_npz/{region}.npz` |
+| `1b_build_moon_index.py` | Moon index: LOLA sites → `data/moon_index.csv`, `data/patches/moon/*.npy` |
+| `2_find_analogs.py` | CLI: Moon site or lat/lon → top-K Earth analogs → `outputs/latest_query.json` |
+| `3_plot_match.py` | CLI: Moon \| Earth comparison plot → `outputs/analog_comparison.png` |
+| `dem_crosscheck.py` | NASADEM vs Copernicus DEM comparison (report: `docs/dem_crosscheck.md`) |
+| `src/raster_io.py` | Shared `extract_patch` (same algorithm for both bodies) |
+| `src/morphometry.py` | 12 terrain features (7 slope percentiles + 5 shape features) |
+| `src/scoring.py`, `src/query.py` | Scaling, distances, `find_analogs`, live Moon extraction |
+| `src/contracts.py` | `validate_records` (CSV schema check) |
+| `src/plotting.py` | `plot_comparison`, `load_earth_patch` |
+| `tests/` | `test_raster_io.py`, `test_contract.py`, `test_pipeline.py` (synthetic end-to-end) |
+| `data/fake/` | Synthetic Earth/Moon CSVs for development |
+| `docs/` | `CONTRACT.md` (source of truth), per-person plans, DEM cross-check |
+
+Committed data: Earth index (**3884 patches, 47 regions**: 42 NASADEM + 5 COPDEM, 8 validation regions flagged in `regions.csv`),
+Moon index (18 sites: Apollo, maria, highlands, craters, polar), and per-region Earth patch archives (~88 MB total, ≤3 MB each).
+Raw DEM tiles and LOLA rasters are not committed. **Not implemented yet:** Streamlit app (`app.py`).
+
+## Original planned structure
 
 Planned repository structure:
 
@@ -927,6 +968,13 @@ The initial MVP focuses specifically on the challenge's **terrain and topography
 # ⚠️ Current Status
 
 **Early prototype / proof of concept.**
+
+Working end to end from the command line: Earth index (47 regions) and Moon index (18 sites) → scoring → top-K analogs → comparison plot.
+Still to do: Streamlit app, README limitations section, clean-clone test.
+
+Known limitations: patches come from a hand-picked set of Earth regions (not global coverage); only elevation-derived
+morphometry is compared (no composition, temperature, regolith or illumination); some regions contain mixed terrain
+(e.g. coastal or ice-adjacent patches); the polar LOLA product is large (1.85 GB) and must be downloaded separately.
 
 Current focus:
 

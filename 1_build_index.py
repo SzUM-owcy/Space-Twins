@@ -1,7 +1,7 @@
 """Build data/earth_index.csv: split regions into 10 km patches, extract, compute features.
 
     uv run python 1_build_index.py [--dem nasadem|copdem] [--regions uyuni,alps] [--workers 4]
-    uv run python 1_build_index.py --npz   # pack patches into data/patches/earth_patches.npz
+    uv run python 1_build_index.py --npz   # pack patches into data/patches/earth_npz/{region}.npz
 
 Default: all regions of the chosen DEM. Existing rows of other regions are kept.
 If Python SSL fails (WSL/proxy), set REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt.
@@ -22,7 +22,7 @@ from rasterio.merge import merge
 from rasterio.warp import transform as warp_transform
 
 from config import (
-    COPDEM_NODATA, DATA_DIR, EARTH_INDEX_PATH, EARTH_PATCH_DIR, NASADEM_NODATA, OUTPUT_DIR,
+    COPDEM_NODATA, DATA_DIR, EARTH_INDEX_PATH, EARTH_NPZ_DIR, EARTH_PATCH_DIR, NASADEM_NODATA, OUTPUT_DIR,
     PATCH_SIZE_M, PIXEL_SIZE_M, RECORD_COLUMNS,
 )
 from src.contracts import validate_records
@@ -88,6 +88,19 @@ REGIONS = [
     Region("hekla", "copdem", (-20.7, 63.6, -18.7, 64.6)),
     Region("odadahraun", "copdem", (-16.3, 65.0, -14.3, 66.0)),
     Region("haughton", "copdem", (-92.0, 75.0, -88.0, 75.8), validation=True),
+    # phase 4: rough / steep terrain, impact structures, polar, basalt
+    Region("hoggar", "nasadem", (5.0, 22.8, 6.0, 23.8)),
+    Region("danakil", "nasadem", (40.2, 13.1, 41.2, 14.1)),
+    Region("zagros", "nasadem", (50.3, 31.5, 51.3, 32.5)),
+    Region("ladakh", "nasadem", (77.5, 33.8, 78.5, 34.8)),
+    Region("puna", "nasadem", (-68.0, -27.0, -67.0, -26.0)),
+    Region("high_atlas", "nasadem", (-6.0, 31.2, -5.0, 32.2)),
+    Region("khaybar", "nasadem", (39.4, 25.2, 40.4, 26.2)),  # harrat basalt field
+    Region("gosses_bluff", "nasadem", (131.8, -24.4, 132.8, -23.4)),
+    Region("wolfe_creek", "nasadem", (127.3, -19.7, 128.3, -18.7)),
+    Region("vredefort", "nasadem", (27.0, -27.5, 28.0, -26.5)),
+    Region("richat", "nasadem", (-11.9, 20.6, -10.9, 21.6)),
+    Region("dry_valleys", "copdem", (160.5, -77.7, 162.5, -77.3)),  # Antarctica, ice-free valleys
 ]
 
 
@@ -184,12 +197,20 @@ def process_region(region: Region, mosaic: Path) -> tuple[list[dict], Counter]:
     return rows, counter.counts
 
 
-def build_npz() -> None:
-    """Pack all indexed patches into data/patches/earth_patches.npz (keys = patch_id, float32)."""
-    ids = pd.read_csv(EARTH_INDEX_PATH)["patch_id"]
-    out = EARTH_PATCH_DIR.parent / "earth_patches.npz"
-    np.savez_compressed(out, **{i: np.load(EARTH_PATCH_DIR / f"{i}.npy").astype(np.float32) for i in ids})
-    print(f"wrote {out} ({len(ids)} patches, {out.stat().st_size / 1e6:.1f} MB)")
+def build_npz(regions: list[str] | None = None) -> None:
+    """Pack patches into data/patches/earth_npz/{region}.npz (keys = patch_id, float32).
+
+    Existing region files are left untouched (rewriting changes the bytes and bloats git history)
+    unless the region is named in ``regions``.
+    """
+    index = pd.read_csv(EARTH_INDEX_PATH)
+    EARTH_NPZ_DIR.mkdir(parents=True, exist_ok=True)
+    for region, ids in index.groupby("region")["patch_id"]:
+        out = EARTH_NPZ_DIR / f"{region}.npz"
+        if out.exists() and not (regions and region in regions):
+            continue
+        np.savez_compressed(out, **{i: np.load(EARTH_PATCH_DIR / f"{i}.npy").astype(np.float32) for i in ids})
+        print(f"wrote {out.name} ({len(ids)} patches, {out.stat().st_size / 1e6:.1f} MB)")
 
 
 def main() -> None:
@@ -197,10 +218,10 @@ def main() -> None:
     p.add_argument("--dem", choices=list(DEMS), default="nasadem")
     p.add_argument("--regions", help="comma-separated slugs (default: all of the chosen DEM)")
     p.add_argument("--workers", type=int, default=1)
-    p.add_argument("--npz", action="store_true", help="only pack existing patches into earth_patches.npz")
+    p.add_argument("--npz", action="store_true", help="only pack patches into data/patches/earth_npz/{region}.npz (existing files kept unless named in --regions)")
     args = p.parse_args()
     if args.npz:
-        return build_npz()
+        return build_npz(args.regions.split(",") if args.regions else None)
 
     check_regions(REGIONS)
     write_regions_csv(REGIONS)

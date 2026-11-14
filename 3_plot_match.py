@@ -2,7 +2,7 @@
 
     uv run python 3_plot_match.py --site marius_hills [--rank 1] [--top-k 5]
 
-Needs data/moon_index.csv, data/earth_index.csv and the patches (earth_patches.npz or
+Needs data/moon_index.csv, data/earth_index.csv and the patches (earth_npz/{region}.npz or
 data/patches/earth/*.npy; data/patches/moon/*.npy).
 """
 import argparse
