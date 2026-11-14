@@ -1,0 +1,19 @@
+patch_id,diviner_cf_microns,mafic_felsic_percentile,composition_valid_pixel_ratio,composition_confidence,composition_status,composition_dataset,composition_reference_version
+moon_marius_hills,8.300912380218506,0.9819587628865979,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_apollo_11,8.300479412078857,0.9806701030927835,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_apollo_12,8.268797874450684,0.904639175257732,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_apollo_14,8.227546215057373,0.8273195876288659,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_apollo_15,8.263125896453857,0.8911082474226805,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_apollo_16,8.14914846420288,0.3125,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_apollo_17,8.276565074920654,0.928479381443299,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_tycho,8.035797119140625,0.001288659793814433,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_copernicus,8.112611293792725,0.07345360824742268,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_aristarchus_crater,7.942747354507446,0.0,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_mare_serenitatis,8.283828258514404,0.9432989690721649,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_mare_imbrium,8.288774490356445,0.9561855670103093,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_highlands_maurolycus,8.13705062866211,0.20038659793814434,0.9,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_highlands_hipparchus,8.13024091720581,0.16301546391752578,1.0,high,ok,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_shackleton,,,,missing,outside_diviner_cf_coverage,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_haworth,,,,missing,outside_diviner_cf_coverage,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_de_gerlache,,,,missing,outside_diviner_cf_coverage,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
+moon_malapert,,,,missing,outside_diviner_cf_coverage,"LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)",3f768f244829
