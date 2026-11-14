@@ -254,7 +254,7 @@ as `|Δ percentile| / std(Earth)`, capped at 3. Illumination distance is
 | `src/raster_io.py`, `src/morphometry.py` | Shared patch extraction and the 12 terrain features |
 | `src/scoring.py`, `src/query.py` | Scaling, distances, `find_analogs`, live Moon extraction |
 | `src/thermal.py`, `src/earth_temperature.py`, `src/moon_temperature.py`, `src/moon_polar_thermal.py` | Thermal feature |
-| `src/composition.py`, `src/earth_composition.py`, `src/moon_composition.py` | Composition proxy |
+| `src/composition.py`, `src/earth_composition.py`, `src/earth_lithology.py`, `src/moon_composition.py` | Composition proxy |
 | `src/illumination.py`, `src/earth_solar.py`, `src/moon_solar.py`, `src/illumination_live.py` | Illumination feature |
 | `src/contracts.py`, `src/plotting.py` | CSV schema validation, plots |
 | `dem_crosscheck.py` | NASADEM vs Copernicus DEM comparison (`docs/dem_crosscheck.md`) |
@@ -394,8 +394,9 @@ breaks down), not as a single "Moon-likeness" score.
   `w_composition > 0` currently reports `missing` for every Earth patch.
   The diagnostic side tables `composition_moon_minerals.csv` (plagioclase / pyroxene / olivine fractions),
   `composition_moon_cf_comparison.csv` and `composition_earth_lithology.csv` (Macrostrat) are explanatory only and
-  do not enter scoring. The lithology table is partial: 4000 of 5009 Earth patches, and only about half of those
-  have a mapped unit (the rest are `unknown`); it is not a mineralogy.
+  do not enter scoring. The lithology table covers all 5009 Earth patches (3×3 sample points each), but only about half have a mapped
+  unit (the rest are `unknown`, e.g. the Sahara, Greenland and India regions); it is not a mineralogy. It appears in
+  query results as `dominant_lithology` and `mixed_lithology_flag` (API: same names) and never changes the score.
 - **Illumination:** geometric Sun visibility only (no atmosphere, clouds or insolation). On Earth the 20 km
   window (limited by the regional DEM mosaics) truncates horizons near region edges; the Moon uses 40 km, which
   the polar validation showed is needed for large craters. Polar sites use the 118 m global LOLA product, which
@@ -411,7 +412,7 @@ Working end to end: Earth index (73 regions) and Moon index (18 sites) → scori
 top-K analogs → CLI and HTTP API. The Streamlit app (`app.py`) currently runs terrain-only scoring and has no
 controls for the thermal, illumination, composition or per-feature weights yet.
 
-Next: finish the Earth lithology table (remaining patches), build the Earth composition table (`1e_build_composition.py earth`, needs an Earthdata login) and run its
+Next: build the Earth composition table (`1e_build_composition.py earth`, needs an Earthdata login) and run its
 validation, validate thermal and Earth illumination against independent sources, a Moon patch-scale
 temperature source for non-polar sites (Diviner RDR binning), more Earth regions, ice/resource indicators and Mars
 as a second target body.

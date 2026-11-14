@@ -13,6 +13,7 @@ import pandas as pd
 from config import (
     DATA_DIR,
     ILLUM_EARTH_PATH,
+    COMPOSITION_EARTH_LITHOLOGY_PATH,
     COMPOSITION_EARTH_PATH,
     COMPOSITION_MOON_PATH,
     ILLUM_MOON_PATH,
@@ -297,6 +298,7 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
         moon_thermal_percentile=moon_thermal, earth_thermal=_table(THERMAL_EARTH_PATH), w_thermal=req.w_thermal,
         moon_illumination=moon_illum, earth_illumination=_table(ILLUM_EARTH_PATH), w_illum=req.w_illum,
         moon_composition=moon_comp, earth_composition=_table(COMPOSITION_EARTH_PATH), w_composition=req.w_composition,
+        earth_lithology=_table(COMPOSITION_EARTH_LITHOLOGY_PATH),
         feature_weights=req.feature_weights,
     )
     result = find_analogs(features, earth, top_k=req.top_k, **find_kwargs)
@@ -328,6 +330,8 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
                 composition_quality=_opt(row, "composition_quality"),
                 composition_confidence=_opt(row, "composition_confidence"),
                 earth_mafic_felsic_percentile=_opt(row, "earth_mafic_felsic_percentile"),
+                dominant_lithology=_opt(row, "dominant_lithology"),
+                mixed_lithology_flag=_opt(row, "mixed_lithology_flag"),
                 terrain_quality=_opt(row, "terrain_quality"),
                 thermal_quality=_opt(row, "thermal_quality"),
                 illumination_quality=_opt(row, "illumination_quality"),

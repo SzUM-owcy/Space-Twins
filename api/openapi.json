@@ -58,6 +58,18 @@
             ],
             "title": "Composition Status"
           },
+          "dominant_lithology": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Dominująca litologia podłoża (Macrostrat; mafic/felsic/anorthosite/carbonate/evaporite/sedimentary/unconsolidated/unknown). Tylko objaśnienie, nie wchodzi do wyniku.",
+            "title": "Dominant Lithology"
+          },
           "earth_mafic_felsic_percentile": {
             "anyOf": [
               {
@@ -125,6 +137,18 @@
           "lon": {
             "title": "Lon",
             "type": "number"
+          },
+          "mixed_lithology_flag": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "True, gdy żadna klasa nie obejmuje >= 60% zmapowanych punktów łatki.",
+            "title": "Mixed Lithology Flag"
           },
           "patch_id": {
             "title": "Patch Id",

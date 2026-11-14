@@ -14,6 +14,7 @@ import pandas as pd
 
 from config import (
     DATA_DIR,
+    COMPOSITION_EARTH_LITHOLOGY_PATH,
     COMPOSITION_EARTH_PATH,
     COMPOSITION_MOON_PATH,
     ILLUM_EARTH_PATH,
@@ -198,6 +199,7 @@ def main() -> None:
             moon_composition=comp["mafic_felsic_percentile"],
             earth_composition=earth_comp,
             w_composition=args.w_composition,
+            earth_lithology=pd.read_csv(COMPOSITION_EARTH_LITHOLOGY_PATH) if COMPOSITION_EARTH_LITHOLOGY_PATH.exists() else None,
             feature_weights=args.feature_weights,
         )
         result = find_analogs(moon["features"], earth_index, top_k=args.top_k, **find_kwargs)

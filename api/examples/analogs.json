@@ -70,6 +70,8 @@
    "composition_quality": null,
    "composition_confidence": null,
    "earth_mafic_felsic_percentile": null,
+   "dominant_lithology": "unknown",
+   "mixed_lithology_flag": false,
    "stability": null,
    "features": {
     "slope_p05": 0.39372427121128917,
@@ -124,6 +126,8 @@
    "composition_quality": null,
    "composition_confidence": null,
    "earth_mafic_felsic_percentile": null,
+   "dominant_lithology": "unknown",
+   "mixed_lithology_flag": false,
    "stability": null,
    "features": {
     "slope_p05": 0.24820559159067068,
@@ -178,6 +182,8 @@
    "composition_quality": null,
    "composition_confidence": null,
    "earth_mafic_felsic_percentile": null,
+   "dominant_lithology": "mafic",
+   "mixed_lithology_flag": false,
    "stability": null,
    "features": {
     "slope_p05": 0.30579695492873205,
@@ -232,6 +238,8 @@
    "composition_quality": null,
    "composition_confidence": null,
    "earth_mafic_felsic_percentile": null,
+   "dominant_lithology": "carbonate",
+   "mixed_lithology_flag": true,
    "stability": null,
    "features": {
     "slope_p05": 0.3596851814624589,
@@ -286,6 +294,8 @@
    "composition_quality": null,
    "composition_confidence": null,
    "earth_mafic_felsic_percentile": null,
+   "dominant_lithology": "unknown",
+   "mixed_lithology_flag": false,
    "stability": null,
    "features": {
     "slope_p05": 0.22747165302935812,

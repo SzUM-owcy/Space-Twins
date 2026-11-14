@@ -213,6 +213,7 @@ def find_analogs(
     moon_composition: float | None = None,
     earth_composition: pd.DataFrame | None = None,
     w_composition: float = 0.0,
+    earth_lithology: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Najbardziej podobne łatki Ziemi do łatki Księżyca (mniejsza odległość = większe podobieństwo).
 
@@ -229,7 +230,8 @@ def find_analogs(
     (patrz ``scoring.distances``); zastępuje podział ``w_slope``. Skład (``w_composition`` > 0):
     ``earth_composition`` ma kolumny ``patch_id``, ``mafic_felsic_percentile``, ``composition_status``,
     ``composition_confidence``; odległość = |różnica percentyli| / std Ziemi (obcięta do 3); brak danych
-    (np. bieguny Księżyca) = składnik wypada z sumy.
+    (np. bieguny Księżyca) = składnik wypada z sumy. ``earth_lithology`` (opcjonalnie: ``patch_id``,
+    ``dominant_lithology``, ``mixed_lithology_flag``) dodaje kolumny objaśniające; nie wpływa na wynik.
     """
     if not 0.0 <= w_thermal <= 1.0:
         raise ValueError(f"w_thermal musi być w [0, 1], jest {w_thermal}")
@@ -269,6 +271,12 @@ def find_analogs(
             result[f"{name}_quality"] = result[f"{name}_distance"].map(quality_label)
     extra = THERMAL_RESULT_COLUMNS + ILLUM_RESULT_COLUMNS + COMPOSITION_RESULT_COLUMNS + QUALITY_COLUMNS
     result = result[RESULT_COLUMNS + [c for c in extra if c in result.columns]]
+    if earth_lithology is not None:
+        by_id = earth_lithology.set_index("patch_id")
+        result["dominant_lithology"] = result["patch_id"].map(by_id["dominant_lithology"])
+        result["mixed_lithology_flag"] = result["patch_id"].map(by_id["mixed_lithology_flag"]).map(
+            lambda v: None if pd.isna(v) else bool(v)
+        )
 
     z_moon = transform(moon_features, scaler)[0]
     result.attrs["out_of_range"] = [
