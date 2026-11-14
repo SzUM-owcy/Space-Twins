@@ -450,6 +450,73 @@ button {
   color: var(--signal);
 }
 
+.rock {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--faint);
+}
+
+.rock-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.rock-type {
+  text-align: right;
+}
+
+.mix-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.mix-label {
+  color: var(--muted);
+}
+
+.mix-bar {
+  display: flex;
+  height: 12px;
+  gap: 2px;
+}
+
+.mix-bar i {
+  min-width: 0;
+}
+
+.mix-empty {
+  color: var(--muted);
+}
+
+.mix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mix-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mix-legend i {
+  width: 8px;
+  height: 8px;
+}
+
 @keyframes ui-in {
   from {
     opacity: 0;
