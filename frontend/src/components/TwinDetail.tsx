@@ -16,12 +16,14 @@ export default function TwinDetail({
   moonName,
   moonFeatures,
   outOfRange,
+  onCompare,
 }: {
   analog: Analog
   count: number
   moonName: string
   moonFeatures: Record<string, number>
   outOfRange: string[]
+  onCompare: () => void
 }) {
   return (
     <section className="detail twin-detail" aria-live="polite" key={analog.patch_id}>
@@ -54,6 +56,9 @@ export default function TwinDetail({
           ))}
         </tbody>
       </table>
+      <button type="button" className="cta" onClick={onCompare}>
+        Compare views
+      </button>
       {outOfRange.length > 0 && (
         <p className="warn">Some measurements of this place are more extreme than any Earth terrain we hold, so this ranking is less reliable.</p>
       )}

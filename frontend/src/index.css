@@ -62,6 +62,7 @@ button {
 /* Stage: the Moon */
 .stage {
   position: relative;
+  isolation: isolate;
   min-height: 0;
 }
 
@@ -538,6 +539,292 @@ button {
   }
 }
 
+/* Compare modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 15, 43, 0.7);
+  backdrop-filter: blur(10px);
+  animation: ui-in 0.3s ease both;
+}
+
+.modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  width: 94vw;
+  height: 90vh;
+  padding: 20px 28px 18px;
+  background: var(--void);
+  border: 1px solid var(--faint);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+  animation: modal-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.modal:focus {
+  outline: none;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.modal-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-width: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs button,
+.modal-toggle,
+.modal-close {
+  flex: none;
+  padding: 6px 14px;
+  border: 1px solid var(--faint);
+  background: none;
+  color: var(--paper);
+  font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.tabs button[aria-selected='true'],
+.modal-toggle[aria-pressed='true'] {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
+.tabs button:hover,
+.modal-toggle:hover,
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-body {
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  min-height: 0;
+}
+
+.patch {
+  position: relative;
+  flex: none;
+  width: min(calc(50cqw - 14px), 100cqh);
+  aspect-ratio: 1;
+  background: var(--night);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.patch[data-body='earth'] {
+  border-color: var(--yonder);
+}
+
+.patch canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.patch[data-status='ready'] canvas {
+  opacity: 1;
+}
+
+.patch-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 18px 20px 36px;
+  background: linear-gradient(to bottom, rgba(5, 15, 43, 0.78), transparent);
+  pointer-events: none;
+}
+
+.patch-title {
+  overflow: hidden;
+  font-family: var(--serif);
+  font-size: 30px;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.patch-coords {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 0 solid var(--signal);
+  pointer-events: none;
+}
+
+.corner.tl {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.corner.tr {
+  top: -1px;
+  right: -1px;
+  border-width: 2px 2px 0 0;
+}
+
+.corner.bl {
+  bottom: -1px;
+  left: -1px;
+  border-width: 0 0 2px 2px;
+}
+
+.corner.br {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+.scale {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  width: 20%;
+  font-size: 13px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+.scale i {
+  display: block;
+  width: 100%;
+  height: 0;
+  margin-bottom: 4px;
+  border-top: 2px solid var(--paper);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.patch-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.patch[data-status='loading'] .patch-state {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.picks {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 0 2px;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+  padding: 5px 14px 5px 5px;
+  border: 1px solid var(--faint);
+  background: none;
+  color: var(--paper);
+  font-size: 15px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.pick span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pick b {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  background: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pick:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pick[aria-current='true'] {
+  border-color: var(--signal);
+}
+
+.pick[aria-current='true'] b {
+  background: var(--signal);
+  color: var(--void);
+}
+
+.sources {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .stage canvas {
     transition: none;
@@ -545,6 +832,16 @@ button {
 
   .swatch,
   .site {
+    transition: none;
+  }
+
+  .modal,
+  .modal-backdrop,
+  .patch-state {
+    animation: none;
+  }
+
+  .patch canvas {
     transition: none;
   }
 }
