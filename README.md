@@ -1,1074 +1,238 @@
-# 🌕 moon\-analog\-lite
+# 🌕 moon-analog-lite
 
-A lightweight Earth–Moon terrain comparison tool for the **2026 NASA Space Apps Challenge**.
+A lightweight, explainable **Earth–Moon analog discovery tool** for the **2026 NASA Space Apps Challenge**
+([Identify Earth Locations that Analog the Permanent Moon Base Locations and Mars](https://www.spaceappschallenge.org/2026/challenges/permanent-moon-base-locations-and-mars/?tab=resources)).
 
-The project explores a simple question:
+**Given a location on the Moon, which places on Earth are analogous to it, in which respects, and where does the analogy break down?**
 
-**Given a location on the Moon, which locations on Earth have the most similar terrain characteristics?**
+The challenge accepts that an Earth analog need not match the Moon in every respect. It asks which
+dimensions (terrain, temperature, illumination, ...) are analogous and where they are not. So the tool does
+not produce one opaque "Moon-likeness" number. It scores each dimension separately and combines them with
+user-adjustable weights. A result can read: *strong terrain analog, moderate thermal analog, poor
+illumination analog*.
 
-moon\-analog\-lite compares elevation\-derived terrain characteristics from two datasets:
+The terrain comparison is the core. Both bodies are reduced to the same representation:
 
-- **Earth:** NASADEM elevation data --> https://www.earthdata.nasa.gov/data/catalog/lpcloud-nasadem-hgt-001
-- **Moon:** LRO/LOLA lunar topography data --> https://astrogeology.usgs.gov/search/map/moon_lro_lola_dem_118m
+```text
+ Earth DEM (NASADEM / Copernicus)      Moon DEM (LRO LOLA 118 m)
+              │                                   │
+        10 km patch, 85 x 85 grid          10 km patch, 85 x 85 grid
+              │                                   │
+        12 terrain features                12 terrain features
+              └──────────────┬────────────────────┘
+                     similarity engine  ◄── optional: thermal range, solar illumination
+                             │
+                  ranked Earth analogs ──► CLI · HTTP API · Streamlit
+```
 
-The first version deliberately focuses **only on terrain morphology**. The goal is to build a small, understandable end\-to\-end prototype before introducing additional dimensions such as temperature, geology, illumination, or Mars data.
+The ranking measures similarity of selected, measurable features. It is **not** a statement about
+landing-site suitability, mission safety or geological equivalence, and Earth cannot reproduce lunar vacuum,
+gravity, radiation, day length or the exact thermal regime.
+
+- Event: https://www.spaceappschallenge.org/2026/local-events/poznan
+- Data resources: https://www.spaceappschallenge.org/2026/challenges/permanent-moon-base-locations-and-mars/?tab=resources
+- Judging criteria: https://www.spaceappschallenge.org/resources/judging-awards-guide/
 
 ---
 
+## Features
 
-Event website: https://www.spaceappschallenge.org/2026/local-events/poznan
+**Terrain (12 features per patch)** — computed by the same function for both bodies
+(`src/morphometry.py::extract_patch_features`):
 
-Topic and useful datasets: https://www.spaceappschallenge.org/2026/challenges/permanent-moon-base-locations-and-mars/?tab=resources
+- slope percentiles: `slope_p05, p10, p25, p50, p75, p90, p95`
+- shape: `rms_height`, `tri_mean`, `relief_range`, `hypsometric_integral`, `elev_skew`
 
-Judging criteria: https://www.spaceappschallenge.org/resources/judging-awards-guide/
+`log1p` is applied to `rms_height`, `tri_mean` and `relief_range`, then all features are z-scored with the
+Earth index statistics. Terrain distance = `w_slope · slope RMS + (1 - w_slope) · shape RMS` of the z-score
+differences (smaller = more similar). Moon features outside the Earth range (|z| > 3) are flagged.
 
+**Thermal range** (optional, experimental): `thermal_range_percentile`, how thermally variable a patch is
+relative to other patches of its own body. **Solar illumination** (optional, experimental):
+`solar_visibility_fraction`, the share of time the Sun is above the terrain horizon. Both live in side
+tables keyed by `patch_id`, so the strict 17-column index CSVs ([`docs/CONTRACT.md`](docs/CONTRACT.md)) are
+unchanged and terrain-only queries keep working.
 
+### Why these dimensions
+
+A DEM says how a place *looks*, not what conditions it exposes equipment to. Thermal range and illumination
+are two operationally relevant dimensions that can be compared consistently for both bodies with openly
+available data. They are not the only ones: vacuum, regolith and dust, radiation and gravity can matter just
+as much, and are **not** covered here.
+
+- **Thermal range.** The Moon has almost no atmosphere to buffer temperature, so surface temperatures swing
+  strongly over the lunar day, and permanently shadowed regions stay extremely cold. Large temperature
+  variation drives thermal stress on materials and affects batteries, electronics and mechanisms. Earth
+  locations with a large temperature range (hot or polar deserts, high plateaus) can be useful for testing
+  *selected aspects* of equipment behaviour under thermal cycling. The feature does not claim that Earth
+  reproduces lunar absolute temperatures.
+- **Solar illumination.** Sunlight affects power availability, heating and the length of operating windows.
+  Near the lunar poles, crater interiors can be permanently shadowed while nearby elevated terrain is lit for
+  a much larger share of the time (NASA's LOLA polar products map average illumination and permanent shadow).
+  Terrain that looks the same can therefore have very different light conditions. The feature measures how
+  much terrain shading limits the Sun, so the ranking can prefer Earth sites with comparable shading.
+
+Because each dimension is scored separately, the tool can show *what* is analogous and *where* the analogy
+fails, and a user can weight the dimensions for a given test question (see [Adjusting weights](#adjusting-weights)).
+The weights are experiment-dependent settings, not a universal definition of "Moon-like".
+
+Both features are relative or geometric: thermal values are percentiles within each body, and illumination is
+geometric Sun visibility without an atmosphere or clouds. They add explainable dimensions to the analog score
+and are not proof of environmental equivalence. See the limitations below.
+
+## Data in the repository
+
+| Item | Content |
+|---|---|
+| Earth index | `data/earth_index.csv`: **4269 patches, 59 regions** (51 NASADEM + 8 Copernicus DEM; 8 validation regions flagged in `data/regions.csv`; 12 exploratory regions use overlapping patches via `stride_km`) |
+| Moon index | `data/moon_index.csv`: **18 sites** (Apollo, maria, highlands, craters, 4 polar) + `data/patches/moon/*.npy` |
+| Earth patches | `data/patches/earth_npz/{region}.npz`, one small archive per region |
+| Side tables | `data/thermal_*.csv`, `data/illumination_*.csv`, `data/processed/*_thermal_reference.json` |
+
+Not committed (gitignored): raw DEM tiles (`data/nasadem`, `data/copdem`), LOLA rasters (`data/lola/` or
+`moon/data/`; global 118 m is 8.5 GB, the polar 20 m product 1.85 GB) and SPICE kernels (`data/spice/`).
 
 ---
 
-## 🎯 Project Objective
+## Setup
 
-The application will:
-
-1. Load a selected lunar terrain area.
-2. Extract a **10 km × 10 km** terrain patch.
-3. Convert the patch to a common **85 × 85** analysis grid.
-4. Calculate terrain characteristics.
-5. Perform the same calculation for Earth terrain patches.
-6. Compare lunar and Earth feature vectors.
-7. Rank the most similar Earth locations.
-8. Present the results in a simple Streamlit application.
-
-The result is an **explainable terrain similarity ranking**, not a prediction of whether a location is suitable for a real lunar mission.
-
----
-
-## Setup with `uv`
-
-This project uses **Python 3.12+** and `uv`.
-
-### Create the environment
+Python 3.12+ and [`uv`](https://docs.astral.sh/uv/). Use `--frozen` (plain `uv run` may fail to re-resolve on
+some platforms). Behind a proxy or on WSL set `REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt`.
 
 ```bash
-uv venv --python 3.12
+uv sync --frozen --default-index https://pypi.org/simple
 ```
 
-### Install dependencies
+### Run a query (works from the committed data)
 
 ```bash
-uv add numpy rasterio \
-  --default-index https://pypi.org/simple
-```
-
-Install development dependencies:
-
-```bash
-uv add --dev pytest \
-  --default-index https://pypi.org/simple
-```
-
-### Install dependencies after cloning
-
-```bash
-uv sync \
-  --default-index https://pypi.org/simple
-```
-
-### Run the pipeline
-
-Use `--frozen` (plain `uv run` may fail to re-resolve on some platforms). Behind a proxy or on WSL set
-`REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt` for downloads.
-
-```bash
-uv sync --frozen
-
-# Earth side: index is already committed (data/earth_index.csv + data/patches/earth_npz/); rebuild only if needed
-uv run --frozen python 1_build_index.py --dem nasadem --workers 3      # tiles are downloaded and cached
-uv run --frozen python 1_build_index.py --dem copdem
-uv run --frozen python 1_build_index.py --npz                          # pack new regions into data/patches/earth_npz/
-
-# Moon side (needs LOLA rasters in data/lola/, gitignored)
-uv run --frozen python 1b_build_moon_index.py
-
-# Query: Earth analogs of a Moon site, and the comparison plot
 uv run --frozen python 2_find_analogs.py --site marius_hills --top-k 5
 uv run --frozen python 3_plot_match.py --site marius_hills            # -> outputs/analog_comparison.png
+uv run --frozen python 2_find_analogs.py --lat 14.07 --lon -56.75     # any point; needs the LOLA raster
 ```
 
-Status document for the Earth side: [src/README-personA.md](src/README-personA.md).
+Results are printed and saved to `outputs/latest_query.json`.
 
-### Thermal-range feature (optional, experimental)
-
-A second comparison feature, `thermal_range_percentile`, ranks how thermally variable a patch is
-within its own body. It lives in side tables keyed by `patch_id`, so the 17-column CONTRACT index CSVs
-are unchanged and terrain-only queries still work.
-
-| Body | Source | Range definition |
-|------|--------|------------------|
-| Earth | MODIS 11A2 v061 (Terra + Aqua, 1 km, 8-day, day + night, 2024) via Planetary Computer | per-pixel P95 - P05 of all valid observations (QA bits 0-1 < 2, at least 100 obs), median over the patch pixels |
-| Moon | LRO Diviner Global Cumulative Product `tbol` (0.5 deg cell, 96 local-time bins) read by HTTP range request | P95 - P05 over the cell's valid local-time bins (at least 40) |
-
-Both ranges are converted to a percentile against their own reference (Earth: all valid indexed patches;
-Moon: 1654 area-uniform cells on a 5 deg grid). Reference files are versioned in `data/processed/`.
+### Streamlit app and HTTP API
 
 ```bash
-uv run --frozen python 1c_build_thermal.py earth       # resumable per region -> data/thermal_earth.csv
-uv run --frozen python 1c_build_thermal.py moon        # -> data/thermal_moon.csv, thermal_moon_grid.csv
-uv run --frozen python 1c_build_thermal.py finalize    # references + thermal_range_percentile
-uv run --frozen python 2_find_analogs.py --site apollo_11 --w-thermal 0.2   # 0 = terrain only
+uv run --frozen streamlit run app.py
+uv run --frozen uvicorn api.main:app --reload --port 8000     # docs at http://localhost:8000/docs
 ```
 
-`total_distance = (1 - w) * terrain_distance + w * thermal_distance`, with
-`thermal_distance = sqrt(6) * |percentile difference|` (z-score-like scale). The CLI output and
-`outputs/latest_query.json` show `terrain_distance`, `thermal_distance`, `thermal_status`; patches without
-thermal data (`missing`) fall back to terrain only.
+The backend ↔ frontend contract is [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md), generated into
+[`api/openapi.json`](api/openapi.json) (regenerate with `uv run --frozen python -m api.export_openapi`).
 
-Limitations: the percentile gives a relative ranking, not an absolute thermal equivalence. Earth values mix
-seasonal and diurnal variation at fixed overpass times and include an atmosphere; Moon values are the full
-diurnal cycle in vacuum. Polar-night / cloudy patches (e.g. `haughton`, `schirmacher_oasis`) are `missing`.
-The 0.20 default weight is an experimental setting.
-
-### Solar-illumination feature (optional, experimental)
-
-`solar_visibility_fraction` = share of the time the Sun is above the **terrain horizon**, relative to the
-time it is above the flat horizon. Over a year the flat-horizon share is ~0.5 everywhere on both bodies, so
-only terrain shading carries signal (0 = permanently shadowed, 1 = never shaded). Side tables keyed by
-`patch_id` (`data/illumination_earth.csv`, `data/illumination_moon.csv`); the CONTRACT CSVs are unchanged.
-
-| Body | Terrain | Sun position |
-|------|---------|--------------|
-| Earth | NASADEM/COPDEM mosaics, 20 km window at 250 m | pvlib (NREL SPA), hourly 2024, Sun centre, no refraction |
-| Moon | LOLA 118 m global (`config.LOLA_GLOBAL_PATH`; also looked up in `moon/data/`), same window | NASA SPICE (DE440s, `IAU_MOON`), same hourly grid |
-
-Horizons are ray-marched (72 azimuths, curvature drop included) from a 5 x 5 grid of points in the patch
-centre; the patch value is the median. SPICE kernels (~33 MB) are downloaded to the gitignored `data/spice/`.
+### Tests
 
 ```bash
-uv run --frozen python 1d_build_illumination.py earth   # ~1 min, resumable per region
+uv run --frozen python -m pytest
+```
+
+---
+
+## Adjusting weights
+
+Every comparison component is adjustable (CLI flags and the API request fields of `POST /api/v1/analogs`):
+
+| Control | Meaning |
+|---|---|
+| `--w-slope` / `w_slope` | slope vs shape split of the terrain distance (default 0.5) |
+| `--feature-weights slope_p50=3,rms_height=2,elev_skew=0` / `feature_weights` | relative importance of each of the 12 terrain features (omitted = 1; replaces `w_slope`; terrain distance becomes the weighted RMS) |
+| `--w-thermal` / `w_thermal` | share of the thermal component (CLI default 0.2, API default 0) |
+| `--w-illum` / `w_illum` | share of the illumination component (CLI default 0.1, API default 0) |
+
+Terrain share = `1 - w_thermal - w_illum`. A component with missing data for the query or a patch drops out
+of the sum (`*_status = "missing"`), it is never treated as zero. With both weights 0 the result is the
+pure terrain ranking. All components are shown separately (`terrain_distance`, `thermal_distance`,
+`illumination_distance`) so a ranking stays explainable. The default weights are experimental, not validated
+scientific constants.
+
+---
+
+## Rebuilding the data
+
+Only needed to extend or regenerate the indexes.
+
+```bash
+# Earth index (tiles are downloaded and cached)
+uv run --frozen python 1_build_index.py --dem nasadem --workers 3
+uv run --frozen python 1_build_index.py --dem copdem
+uv run --frozen python 1_build_index.py --npz                  # pack new regions into data/patches/earth_npz/
+
+# Moon index (needs the LOLA rasters)
+uv run --frozen python 1b_build_moon_index.py
+
+# Thermal side tables
+uv run --frozen python 1c_build_thermal.py earth               # resumable per region
+uv run --frozen python 1c_build_thermal.py moon
+uv run --frozen python 1c_build_thermal.py finalize            # versioned references + percentiles
+
+# Illumination side tables
+uv run --frozen python 1d_build_illumination.py earth          # ~1 min, resumable per region
 uv run --frozen python 1d_build_illumination.py moon
-uv run --frozen python 2_find_analogs.py --site tycho --w-thermal 0.2 --w-illum 0.1   # 0 = off
 ```
 
-Terrain weight = `1 - w_thermal - w_illum`; `illumination_distance = |difference| / std(Earth)` capped at 3.
-A missing component drops out of the sum (its weight returns to the others). Output adds
-`illumination_distance` / `illumination_status`; `--lat/--lon` computes the Moon value live.
+### How the optional features are computed
 
-Limitations: geometric visibility only (no atmosphere, clouds, insolation or temperature); the 20 km window
-truncates horizons near region edges and for polar craters, whose shadows depend on larger terrain; polar
-sites use the global product (the 20 m polar DEM is not used). The feature is derived from the DEM, so it is
-strongly rank-correlated with roughness on Earth (about -0.85 with `rms_height`), and it saturates for
-permanently shadowed Moon sites (no Earth patch is that dark). The 0.10 default weight is experimental.
+| | Earth | Moon |
+|---|---|---|
+| **Thermal range** | MODIS 11A2 v061 (Terra + Aqua, 1 km, day + night, 2024) via Planetary Computer: per-pixel P95 − P05, median over the patch | LRO Diviner Global Cumulative Product `tbol` (0.5° cell, 96 local-time bins): P95 − P05 |
+| **Illumination** | NASADEM/COPDEM terrain horizon (20 km window at 250 m) + pvlib Sun positions, hourly 2024 | LOLA horizon, same window + NASA SPICE (DE440s) Sun positions |
 
-### Per-feature weights
-
-Every comparison feature has an adjustable importance: `--w-thermal` and `--w-illum` set the thermal and
-illumination shares, and `--feature-weights slope_p50=3,rms_height=2,elev_skew=0` sets the relative
-importance of each of the 12 terrain features (omitted = 1, replaces `--w-slope`; terrain distance becomes
-the weighted RMS of the z-scores). The API accepts the same as `feature_weights`, `w_thermal`, `w_illum`
-in `POST /api/v1/analogs`.
-
-### Run tests
-
-```bash
-uv run \
-  --default-index https://pypi.org/simple \
-  pytest
-```
-
-Dependencies are stored in `pyproject.toml` and locked in `uv.lock`.
-
-### Run the HTTP API (backend for the new frontend)
-
-```bash
-uv run uvicorn api.main:app --reload --port 8000
-```
-
-Interactive docs at `http://localhost:8000/docs`. The backend ↔ frontend contract is described in
-[`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) and generated into [`api/openapi.json`](api/openapi.json).
-After changing `api/schemas.py` or the routes, run `uv run python -m api.export_openapi`.
-
----------
-
-# 🛰️ Initial Datasets
-
-The MVP intentionally uses only **two datasets**.
-
-## Earth — NASADEM
-
-NASADEM provides elevation data for Earth's land surface.
-
-For this project:
-
-NASADEM
-
-   ↓
-
-Earth DEM
-
-   ↓
-
-10 km × 10 km patches
-
-   ↓
-
-Common 85 × 85 grid
-
-   ↓
-
-Terrain features
-
-   ↓
-
-earth\_index.csv
-
-Dataset discovery and access:
-
-[NASA Earthdata Search](https://search.earthdata.nasa.gov/?utm_source=%27chatgpt.com%27)
+Thermal ranges are converted to a percentile within their own body (Earth: all valid indexed patches; Moon:
+1654 area-uniform cells on a 5° grid); the distance is `sqrt(6) · |Δ percentile|`. Illumination distance is
+`|Δ fraction| / std(Earth)`, capped at 3. Horizons are ray-marched (72 azimuths, curvature included) from a
+5 × 5 grid of points in the patch centre.
 
 ---
 
-## Moon — LRO / LOLA
-
-The Lunar Orbiter Laser Altimeter (LOLA), part of NASA's Lunar Reconnaissance Orbiter mission, provides lunar topographic measurements.
-
-For this project:
-
-LOLA
-
- ↓
-
-Moon DEM
-
- ↓
-
-10 km × 10 km patch
-
- ↓
-
-Common 85 × 85 grid
-
- ↓
-
-Terrain features
-
- ↓
-
-Moon feature vector
-
-Resources:
-
-[NASA Planetary Data System](https://pds.nasa.gov/?utm_source=%27chatgpt.com%27)
-
-[NASA LRO Data Archive](https://pds-geosciences.wustl.edu/missions/lro/?utm_source=%27chatgpt.com%27)
-
----
-
-# 🧠 Core Idea
-
-Both Earth and Moon data are transformed into the **same representation**.
-
-                 EARTH                      MOON
-
-                NASADEM                    LOLA
-
-                   │                         │
-
-                   ▼                         ▼
-
-                  DEM                       DEM
-
-                   │                         │
-
-                   ▼                         ▼
-
-             10 km patch                10 km patch
-
-                   │                         │
-
-                   ▼                         ▼
-
-              85 × 85                    85 × 85
-
-                   │                         │
-
-                   ▼                         ▼
-
-            Terrain features          Terrain features
-
-                   │                         │
-
-                   └──────────┬──────────────┘
-
-                              │
-
-                              ▼
-
-                     Similarity Engine
-
-                              │
-
-                              ▼
-
-                      Ranked Earth Sites
-
-                              │
-
-                              ▼
-
-                         Streamlit
-
-This shared representation is the main contract between the Earth and Moon pipelines.
-
----
-
-# 📐 Terrain Features
-
-Each terrain patch is converted into the same **12\-feature vector**.
-
-## Slope distribution
-
-slope\_p05
-
-slope\_p10
-
-slope\_p25
-
-slope\_p50
-
-slope\_p75
-
-slope\_p90
-
-slope\_p95
-
-These describe how steep the terrain is across the patch.
-
-## Terrain shape
-
-rms\_height
-
-tri\_mean
-
-relief\_range
-
-hypsometric\_integral
-
-elev\_skew
-
-These describe properties such as terrain roughness, elevation variation, and elevation distribution.
-
-Both pipelines use the same function:
-
-extract\_patch\_features(
-
-    patch: np.ndarray,
-
-    pixel\_size\_m: float,
-
-) \-> dict
-
----
-
-# 👥 Parallel Development
-
-The initial work is divided by **dataset**, allowing two people to develop independently.
-
-## 👤 Person A — Earth Pipeline
-
-Responsible for:
-
-NASA Earthdata
-
-      ↓
-
-NASADEM
-
-      ↓
-
-Earth DEM processing
-
-      ↓
-
-10 × 10 km patches
-
-      ↓
-
-85 × 85 common grid
-
-      ↓
-
-12 terrain features
-
-      ↓
-
-earth\_index.csv
-
-### Initial tasks
-
-- [ ] Download one small NASADEM area.
-- [ ] Load the DEM with Rasterio.
-- [ ] Convert the selected area to the common metric grid.
-- [ ] Extract one 10 km × 10 km patch.
-- [ ] Calculate the 12 terrain features.
-- [ ] Save the results to CSV.
-- [ ] Expand from one patch to multiple Earth patches.
-- [ ] Add tests for Earth preprocessing.
-
-Start with **one Earth region**.
-
-Do not attempt a global search initially.
-
----
-
-## 👤 Person B — Moon Pipeline
-
-Responsible for:
-
-NASA PDS
-
-    ↓
-
-LRO / LOLA
-
-    ↓
-
-Moon DEM processing
-
-    ↓
-
-10 × 10 km patch
-
-    ↓
-
-85 × 85 common grid
-
-    ↓
-
-12 terrain features
-
-    ↓
-
-Moon feature vector
-
-### Initial tasks
-
-- [ ] Download one small LOLA DEM.
-- [ ] Load the DEM with Rasterio.
-- [ ] Select one lunar location.
-- [ ] Extract a 10 km × 10 km area.
-- [ ] Convert it to the common 85 × 85 grid.
-- [ ] Calculate the same 12 terrain features.
-- [ ] Save the resulting feature vector.
-- [ ] Add tests for lunar preprocessing.
-
-Start with **one Moon location**.
-
-A possible development benchmark is:
-
-Marius Hills
-
-Latitude:   14.0
-
-Longitude: \-56.0
-
-The benchmark is initially being used to develop and verify the algorithm, not as a claim that it is the optimal location for a future lunar base.
-
----
-
-# 🤝 Shared Data Contract
-
-Both pipelines must produce compatible feature records.
-
-Example:
-
-patch\_id
-
-source
-
-center\_lat
-
-center\_lon
-
-slope\_p05
-
-slope\_p10
-
-slope\_p25
-
-slope\_p50
-
-slope\_p75
-
-slope\_p90
-
-slope\_p95
-
-rms\_height
-
-tri\_mean
-
-relief\_range
-
-hypsometric\_integral
-
-elev\_skew
-
-Example Earth output:
-
-patch\_id,source,center\_lat,center\_lon,slope\_p50,rms\_height,tri\_mean,relief\_range
-
-earth\_001,NASADEM,35.4,\-111.5,4.2,42.0,12.5,180.0
-
-The complete implementation contains all 12 terrain features.
-
-The two pipelines should be considered compatible when:
-
-set(earth\_features.keys()) == set(moon\_features.keys())
-
-for the terrain\-feature fields.
-
----
-
-# 🏗️ Project Structure
-
-## Current structure
+## Repository layout
 
 | Path | Purpose |
 |---|---|
-| `config.py` | Geometry, nodata/scale, feature names, record columns, data paths (incl. LOLA) |
-| `0_download_earth.py` | NASADEM / Copernicus DEM tile download (`--dem nasadem\|copdem`) |
-| `1_build_index.py` | Earth index: 59 regions → 10 km grid → patches → features → `data/earth_index.csv`, `data/regions.csv`, `data/patches/earth_npz/{region}.npz` |
-| `1b_build_moon_index.py` | Moon index: LOLA sites → `data/moon_index.csv`, `data/patches/moon/*.npy` |
-| `2_find_analogs.py` | CLI: Moon site or lat/lon → top-K Earth analogs → `outputs/latest_query.json` |
-| `3_plot_match.py` | CLI: Moon \| Earth comparison plot → `outputs/analog_comparison.png` |
-| `dem_crosscheck.py` | NASADEM vs Copernicus DEM comparison (report: `docs/dem_crosscheck.md`) |
-| `src/raster_io.py` | Shared `extract_patch` (same algorithm for both bodies) |
-| `src/morphometry.py` | 12 terrain features (7 slope percentiles + 5 shape features) |
+| `config.py` | Geometry, nodata/scale, feature names, data paths, thermal/illumination constants |
+| `0_download_earth.py`, `1_build_index.py`, `1b_build_moon_index.py` | DEM download and Earth/Moon index builders |
+| `1c_build_thermal.py`, `1d_build_illumination.py` | Side-table builders |
+| `2_find_analogs.py`, `3_plot_match.py` | CLI query and comparison plot |
+| `app.py` | Streamlit app |
+| `api/` | FastAPI backend (`main.py`, `service.py`, `schemas.py`, OpenAPI + examples) |
+| `src/raster_io.py`, `src/morphometry.py` | Shared patch extraction and the 12 terrain features |
 | `src/scoring.py`, `src/query.py` | Scaling, distances, `find_analogs`, live Moon extraction |
-| `src/contracts.py` | `validate_records` (CSV schema check) |
-| `src/plotting.py` | `plot_comparison`, `load_earth_patch` |
-| `tests/` | `test_raster_io.py`, `test_contract.py`, `test_pipeline.py` (synthetic end-to-end) |
-| `data/fake/` | Synthetic Earth/Moon CSVs for development |
-| `docs/` | `CONTRACT.md` (source of truth), per-person plans, DEM cross-check |
-
-Committed data: Earth index (**4269 patches, 59 regions**: 50 NASADEM + 9 COPDEM; 12 exploratory regions with overlapping-patch sampling (`stride_km`), 8 validation regions flagged in `regions.csv`),
-Moon index (18 sites: Apollo, maria, highlands, craters, polar), and per-region Earth patch archives (~88 MB total, ≤3 MB each).
-Raw DEM tiles and LOLA rasters are not committed. **Not implemented yet:** Streamlit app (`app.py`).
-
-## Original planned structure
-
-Planned repository structure:
-
-moon\-analog\-lite/
-
-├── README.md
-
-├── requirements.txt
-
-├── config.py
-
-├── app.py
-
-│
-
-├── 0\_download\_data.py
-
-├── 1\_build\_index.py
-
-├── 2\_find\_analogs.py
-
-├── 3\_plot\_match.py
-
-│
-
-├── src/
-
-│   ├── \_\_init\_\_.py
-
-│   ├── contracts.py
-
-│   ├── raster\_io.py
-
-│   ├── morphometry.py
-
-│   ├── scoring.py
-
-│   ├── query.py
-
-│   └── plotting.py
-
-│
-
-├── tests/
-
-│   ├── test\_morphometry.py
-
-│   ├── test\_scoring.py
-
-│   └── test\_pipeline.py
-
-│
-
-├── data/
-
-│   ├── nasadem/
-
-│   ├── lola/
-
-│   └── earth\_index.csv
-
-│
-
-└── outputs/
-
-    ├── latest\_query.json
-
-    └── analog\_comparison.png
+| `src/thermal.py`, `src/earth_temperature.py`, `src/moon_temperature.py` | Thermal feature |
+| `src/illumination.py`, `src/earth_solar.py`, `src/moon_solar.py`, `src/illumination_live.py` | Illumination feature |
+| `src/contracts.py`, `src/plotting.py` | CSV schema validation, plots |
+| `dem_crosscheck.py` | NASADEM vs Copernicus DEM comparison (`docs/dem_crosscheck.md`) |
+| `tests/` | Raster extraction, contract and synthetic end-to-end tests |
+| `docs/` | `CONTRACT.md` (source of truth), `API_CONTRACT.md`, per-person plans |
 
 ---
 
-# 🚀 Milestones
-
-## Milestone 0 — Define the Contract
-
-**Together**
-
-Before implementing the individual pipelines:
-
-- [ ] Agree on patch size: **10 km × 10 km**
-- [ ] Agree on analysis grid: **85 × 85**
-- [ ] Agree on feature names.
-- [ ] Agree on feature units.
-- [ ] Define extract\_patch\_features().
-- [ ] Define CSV/output schema.
-
----
-
-## Milestone 1 — Independent Data Pipelines
-
-Work completely in parallel.
-
-### Earth
-
-NASADEM
-
-   ↓
-
-one DEM
-
-   ↓
-
-one 85 × 85 patch
-
-   ↓
-
-12 features
-
-### Moon
-
-LOLA
-
- ↓
-
-one DEM
-
- ↓
-
-one 85 × 85 patch
-
- ↓
-
-12 features
-
-### Success
-
-Both pipelines independently produce compatible feature vectors.
-
----
-
-## Milestone 2 — First Earth–Moon Comparison
-
-Combine both outputs:
-
-Earth features
-
-      │
-
-      ▼
-
-   Compare
-
-      ▲
-
-      │
-
-Moon features
-
-Calculate:
-
-Slope distance
-
-      \+
-
-Terrain shape distance
-
-      =
-
-Combined distance
-
-Lower distance means the terrain profiles are more similar according to the selected metrics.
-
----
-
-## Milestone 3 — Build Earth Index
-
-Expand the Earth pipeline:
-
-1 Earth patch
-
-     ↓
-
-10 patches
-
-     ↓
-
-100\+ patches
-
-     ↓
-
-earth\_index.csv
-
-Each row represents one Earth terrain patch and its feature vector.
-
----
-
-## Milestone 4 — Find Top\-K Analogs
-
-Implement:
-
-find\_analogs(
-
-    moon\_features,
-
-    earth\_index,
-
-    top\_k=5,
-
-)
-
-Example:
-
-Moon location: Marius Hills
-
-Rank \| Earth Region \| Distance
-
-\-\-\-\-\-\|\-\-\-\-\-\-\-\-\-\-\-\-\-\-\|\-\-\-\-\-\-\-\-\-
-
-1    \| Region A     \| 0.31
-
-2    \| Region B     \| 0.38
-
-3    \| Region C     \| 0.44
-
-4    \| Region D     \| 0.51
-
-5    \| Region E     \| 0.57
-
----
-
-## Milestone 5 — Streamlit MVP
-
-Create a lightweight UI:
-
-🌕 Moon Analog Finder
-
-Moon location:
-
-[Marius Hills ▼]
-
-Slope / terrain weighting:
-
-[━━━━━━━━●━━]
-
-[ Find Analogs ]
-
-Top Earth Matches
-
-1\. Region A
-
-2\. Region B
-
-3\. Region C
-
-Moon Terrain     Earth Terrain
-
-Slope distance: 0.21
-
-Shape distance: 0.42
-
-Total distance: 0.31
-
-Initial UI scope:
-
-- [ ] Select predefined Moon location.
-- [ ] Enter custom latitude/longitude.
-- [ ] Select Top\-K.
-- [ ] Adjust slope/shape weighting.
-- [ ] Run comparison.
-- [ ] Display ranked Earth sites.
-- [ ] Show terrain comparison plot.
-- [ ] Show individual similarity components.
-- [ ] Show project limitations.
-
----
-
-# ✅ Definition of MVP
-
-The MVP is complete when this path works:
-
-Real NASADEM Earth data
-
-           ↓
-
-     Earth features
-
-           │
-
-           │
-
-           ▼
-
-     Similarity engine
-
-           ▲
-
-           │
-
-      Moon features
-
-           ↑
-
- Real LOLA Moon data
-
-           │
-
-           ▼
-
-    Top Earth matches
-
-           │
-
-           ▼
-
-      Streamlit UI
-
-The goal is **not** initially to search the entire Earth.
-
-The goal is to prove that the complete pipeline works correctly for a small number of locations.
-
----
-
-# 🔬 Scientific Scope
-
-The first version measures **terrain similarity only**.
-
-The score should be interpreted as:
-
-Similarity between selected elevation\-derived terrain characteristics.
-
-It should **not** be interpreted as:
-
-- probability that two environments are equivalent;
-- lunar landing\-site suitability;
-- habitat suitability;
-- mission safety;
-- geological equivalence;
-- NASA endorsement of an Earth analog.
-
-Earth cannot reproduce many important lunar conditions, including lunar gravity, vacuum, radiation environment, dust properties, and thermal behavior.
-
----
-
-# 🔭 Future Development
-
-## Phase 2 — Temperature
-
-After terrain works, investigate:
-
-[LRO Diviner Lunar Data](https://pds-geosciences.wustl.edu/missions/lro/diviner.htm?utm_source=%27chatgpt.com%27)
-
-The model could then become:
-
-Analog similarity
-
-      │
-
-      ├── Terrain similarity
-
-      │      ├── slope
-
-      │      ├── roughness
-
-      │      └── relief
-
-      │
-
-      └── Thermal similarity
-
-             ├── temperature range
-
-             ├── minimum temperature
-
-             └── thermal extremes
-
-An appropriate NASA Earth\-observation temperature dataset would need to be selected for the Earth side before implementing this phase.
-
----
-
-## Phase 3 — Additional Characteristics
-
-Possible future dimensions:
-
-Terrain
-
-\+
-
-Temperature
-
-\+
-
-Illumination
-
-\+
-
-Surface/geological characteristics
-
-\+
-
-Ice/resource indicators
-
-Each dimension should remain an independent, explainable component of the final similarity score.
-
----
-
-## Phase 4 — Mars
-
-Once the architecture works for:
-
-Earth ↔ Moon
-
-extend the target pipeline to:
-
-Earth ↔ Moon
-
-Earth ↔ Mars
-
-The same high\-level architecture can remain:
-
-Planetary dataset
-
-       ↓
-
-Common representation
-
-       ↓
-
-Feature extraction
-
-       ↓
-
-Similarity engine
-
-       ↓
-
-Earth analog ranking
-
----
-
-# 🧪 Development Principle
-
-Always implement the smallest version first.
-
-ONE Earth patch
-
-\+
-
-ONE Moon patch
-
-        ↓
-
-Feature comparison
-
-        ↓
-
-Does it work?
-
-        ↓
-
-YES
-
-        ↓
-
-More Earth patches
-
-        ↓
-
-More Moon locations
-
-        ↓
-
-Streamlit
-
-        ↓
-
-Additional datasets
-
-Do not add new datasets until the previous comparison works end\-to\-end.
-
----
-
-# 🌌 NASA Space Apps Challenge
-
-This project is being developed for the:
-
-**2026 NASA Space Apps Challenge**
-
-Challenge:
-
-**Identify Earth Locations that Analog the Permanent Moon Base Locations and Mars**
-
-Challenge resources:
-
-[Official Challenge Resources](https://www.spaceappschallenge.org/2026/challenges/permanent-moon-base-locations-and-mars/?tab=resources)
-
-The initial MVP focuses specifically on the challenge's **terrain and topography** dimension.
-
----
-
-# ⚠️ Current Status
-
-**Early prototype / proof of concept.**
-
-Working end to end from the command line: Earth index (59 regions) and Moon index (18 sites) → scoring → top-K analogs → comparison plot.
-Still to do: Streamlit app, README limitations section, clean-clone test.
-
-Known limitations: patches come from a hand-picked set of Earth regions (not global coverage); only elevation-derived
-morphometry is compared (no composition, temperature, regolith or illumination); some regions contain mixed terrain
-(e.g. coastal or ice-adjacent patches); the polar LOLA product is large (1.85 GB) and must be downloaded separately.
-
-Current focus:
-
-NASADEM
-
-   ↕
-
-terrain comparison
-
-   ↕
-
-LOLA
-
-The initial candidate regions and lunar benchmarks are used to develop and verify the algorithm.
-
-They should not yet be considered scientifically validated planetary analog classifications.
-
+## Scientific scope and limitations
+
+- Only elevation-derived morphometry is the core comparison; thermal and illumination are experimental
+  add-ons. Composition, regolith, gravity, vacuum and radiation are **not** compared.
+- Earth analogs come from a hand-picked set of regions, not global coverage; some regions contain mixed
+  terrain (coastal or ice-adjacent patches). The scaler and the |z| > 3 flag depend on this selection, and
+  patches within a region are strongly correlated.
+- LOLA 118 m is largely interpolated between altimeter tracks, so Moon slopes and TRI are slightly smoothed
+  compared with Earth averaged from real 30 m data; results may favour flat analogs. NASADEM is a surface
+  model (includes canopy), hence the desert/volcanic selection.
+- **Thermal:** a relative percentile, not absolute equivalence. Earth values mix seasonal and diurnal
+  variation at fixed overpass times and include an atmosphere; Moon values cover the full diurnal cycle in
+  vacuum. Polar-night or cloudy patches are `missing`; polar Moon sites match low-range Earth patches.
+- **Illumination:** geometric Sun visibility only (no atmosphere, clouds or insolation). The 20 km window
+  truncates horizons near region edges and for polar craters; polar sites use the global LOLA product. On
+  Earth it is strongly rank-correlated with roughness (about −0.85 with `rms_height`), and it saturates for
+  permanently shadowed Moon sites.
+- Candidate regions and lunar benchmarks were used to develop the algorithm; they are not scientifically
+  validated planetary analog classifications.
+
+## Status and future work
+
+Working end to end: Earth index (59 regions) and Moon index (18 sites) → scoring with adjustable weights →
+top-K analogs → CLI, HTTP API and Streamlit.
+
+Next: the 20 m polar LOLA product for polar illumination, validation against NASA polar illumination
+products, more Earth regions, additional dimensions (mineralogy, ice/resource indicators) and Mars as a
+second target body.
