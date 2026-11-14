@@ -201,6 +201,11 @@ class Analog(Model):
         default=None, description="high / medium / low / low_quartz_confounder (pewność proxy składu patch'a Ziemi)."
     )
     earth_mafic_felsic_percentile: float | None = None
+    dominant_lithology: str | None = Field(
+        default=None,
+        description="Dominująca litologia podłoża (Macrostrat; mafic/felsic/anorthosite/carbonate/evaporite/sedimentary/unconsolidated/unknown). Tylko objaśnienie, nie wchodzi do wyniku.",
+    )
+    mixed_lithology_flag: bool | None = Field(default=None, description="True, gdy żadna klasa nie obejmuje >= 60% zmapowanych punktów łatki.")
     stability: float | None = Field(
         default=None, description="Ułamek przebiegów z szumem (stability_runs), w których łatka zostaje w top-K; null = nie liczone."
     )

@@ -7,18 +7,22 @@ and Moon values are never compared; each is converted to a percentile within its
 
 ## Moon (done)
 
-Product: `DIVGLOB1701_CX3` (Zenodo 4558235), 32 pixels/degree, ±70° latitude. The file has no georeferencing; the
-grid (row 0 = +70°, column 0 = −180° east-positive) was identified by checking that mare locations read about
-8.30 µm and highlands about 8.1 µm, whereas a 0–360° origin gave no mare/highland contrast.
+Product: `diviner_CF_space_weathering_corrected.tiff` (Zenodo 4558194; corrected for viewing geometry and space
+weathering), 32 pixels/degree, ±70° latitude. The file has no georeferencing; the grid (row 0 = +70°, column 0 =
+−180° east-positive) was identified by checking that mare locations read about 8.3 µm and highlands about 8.17 µm,
+whereas a 0–360° origin gave no mare/highland contrast. The earlier viewing-geometry-only map (`DIVGLOB1701_CX3`)
+is kept for comparison in `data/composition_moon_cf_comparison.csv`.
 
 | Class | Sites (patch median CF, µm) |
 |---|---|
-| Mare (mafic) | Apollo 11 8.300, Marius Hills 8.301, Mare Imbrium 8.289, Mare Serenitatis 8.284, Apollo 17 8.277, Apollo 12 8.269 |
-| Highlands (felsic) | Apollo 16 8.149, Maurolycus 8.137, Hipparchus 8.130 |
+| Mare (mafic) | Marius Hills 8.303, Mare Imbrium 8.299, Apollo 11 8.290, Mare Serenitatis 8.281, Apollo 12 8.267, Apollo 17 8.253 |
+| Highlands (felsic) | Apollo 16 8.175, Maurolycus 8.171, Hipparchus 8.162 |
 
-Every mare site is above every highland site (class medians 8.286 vs 8.137), so higher CF = more mafic
-(`direction = higher_is_mafic`). Fresh craters read lowest (Tycho 8.036, Aristarchus 7.943), consistent with
-plagioclase-rich / immature material. The reference distribution uses 1552 area-uniform 5° cells within ±70°
+Every mare site is above every highland site (class medians 8.286 vs 8.171), so higher CF = more mafic
+(`direction = higher_is_mafic`). The correction narrows the contrast and lifts the fresh craters off the extreme low
+end (Tycho 8.036 to 8.191, Aristarchus 7.943 to 8.086; Aristarchus is still the lowest). The Diviner mineral rasters
+agree (`data/composition_moon_minerals.csv`: mare 28-42 percent plagioclase and 46-63 percent pyroxene, Apollo 16 and
+the highland sites about 82 percent plagioclase). The reference distribution uses 1552 area-uniform 5° cells within ±70°
 (`data/processed/moon_composition_reference.json`). The 4 polar sites (Shackleton, Haworth, de Gerlache, Malapert)
 are `outside_diviner_cf_coverage` and drop out of the score.
 
