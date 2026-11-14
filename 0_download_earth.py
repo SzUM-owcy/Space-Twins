@@ -1,6 +1,6 @@
-"""Download NASADEM 1x1 deg tiles covering a bbox from Planetary Computer and inspect them.
+"""Download 1x1 deg DEM tiles covering a bbox from Planetary Computer and inspect them.
 
-    uv run python 0_download_earth.py [--bbox W S E N]
+    uv run python 0_download_earth.py [--dem nasadem|copdem] [--bbox W S E N]
 
 If Python SSL fails (WSL/proxy), set REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt.
 """
@@ -13,21 +13,28 @@ import pystac_client
 import rasterio
 import requests
 
-from config import NASADEM_DIR
+from config import COPDEM_DIR, NASADEM_DIR
 
 STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
+# collection, asset key, local dir, CONTRACT source label
+DEMS = {
+    "nasadem": ("nasadem", "elevation", NASADEM_DIR, "NASADEM"),
+    "copdem": ("cop-dem-glo-30", "data", COPDEM_DIR, "COPDEM"),
+}
 
 
-def download_tiles(bbox, out_dir: Path = NASADEM_DIR) -> list[Path]:
+def download_tiles(bbox, dem: str = "nasadem", out_dir: Path | None = None) -> list[Path]:
+    collection, asset, default_dir, _ = DEMS[dem]
+    out_dir = out_dir or default_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     catalog = pystac_client.Client.open(STAC_URL, modifier=planetary_computer.sign_inplace)
-    items = catalog.search(collections=["nasadem"], bbox=bbox).item_collection()
+    items = catalog.search(collections=[collection], bbox=bbox).item_collection()
     paths = []
     for item in items:
         path = out_dir / f"{item.id}.tif"
         if not path.exists():
             print(f"downloading {item.id} ...")
-            with requests.get(item.assets["elevation"].href, stream=True, timeout=60) as r:
+            with requests.get(item.assets[asset].href, stream=True, timeout=60) as r:
                 r.raise_for_status()
                 tmp = path.with_suffix(".part")
                 with open(tmp, "wb") as f:
@@ -44,12 +51,14 @@ def inspect(path: Path) -> None:
         print(f"\n== {path.name}")
         print(f"crs={src.crs} size={src.width}x{src.height} dtype={src.dtypes[0]}")
         print(f"nodata={src.nodata} scale={src.scales[0]} offset={src.offsets[0]}")
-        print(f"min={a.min()} max={a.max()} nodata_px={(a == -32768).sum()}")
+        print(f"min={np.nanmin(a)} max={np.nanmax(a)} nodata_px={(a == -32768).sum()} nan_px={np.isnan(a).sum()}")
         print(f"pixels exactly 0: {(a == 0).mean():.1%}")
 
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--bbox", type=float, nargs=4, default=[-111.1, 35.0, -111.0, 35.1])
-    for path in download_tiles(p.parse_args().bbox):
+    p.add_argument("--dem", choices=list(DEMS), default="nasadem")
+    args = p.parse_args()
+    for path in download_tiles(args.bbox, args.dem):
         inspect(path)
