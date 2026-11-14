@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 import rasterio
+from pyproj import Transformer
 from rasterio.crs import CRS
 from rasterio.transform import from_bounds
 from rasterio.warp import Resampling, reproject, transform as warp_transform
@@ -82,6 +83,16 @@ def observer_points(
     return [(float(e), float(nn)) for nn in offs for e in offs]
 
 
+def observer_latlon(
+    lat: float, lon: float, body: str, points: list[tuple[float, float]]
+) -> tuple[np.ndarray, np.ndarray]:
+    """Latitude/longitude of (east, north) metre offsets from the patch centre."""
+    radius = BODY_RADIUS_M[body]
+    to_ll = Transformer.from_crs(aeqd_crs(lat, lon, body), f"+proj=longlat +R={radius} +no_defs", always_xy=True)
+    lons, lats = to_ll.transform([p[0] for p in points], [p[1] for p in points])
+    return np.asarray(lats), np.asarray(lons)
+
+
 def horizon_profile(
     z: np.ndarray,
     body: str,
@@ -125,24 +136,34 @@ def extract_solar_visibility_fraction(
 ) -> dict:
     """Shared Earth/Moon aggregation.
 
+    sun_*: (n_samples,) for one Sun track, or (n_points, n_samples) with a Sun track per observer point
+    (matters near the poles, where the local azimuth changes quickly over a few km).
     horizon_deg: (n_points, n_az) terrain horizon. Per point: terrain visibility = share of samples
     with elevation > max(horizon, 0); astronomical = share with elevation > 0. The patch fraction is
     the median over points of terrain/astronomical; NaN when the Sun is almost never up.
     """
     n_az = horizon_deg.shape[1]
     grid = np.arange(n_az) * 360.0 / n_az
-    up = sun_elevation_deg > 0
-    astro = float(up.mean())
+    elev2d = np.atleast_2d(sun_elevation_deg)
+    azim2d = np.atleast_2d(sun_azimuth_deg)
+    if elev2d.shape[0] == 1:
+        elev2d = np.repeat(elev2d, len(horizon_deg), axis=0)
+        azim2d = np.repeat(azim2d, len(horizon_deg), axis=0)
+    astro_pts = (elev2d > 0).mean(axis=1)
+    astro = float(np.median(astro_pts))
     valid = np.isfinite(horizon_deg).all(axis=1)
     if not valid.any() or astro < ILLUM_MIN_ASTRO_FRACTION:
         return {"fraction": np.nan, "astro": astro, "terrain": np.nan, "points": int(valid.sum())}
-    terr = []
-    for hz in horizon_deg[valid]:
-        h_at_sun = np.interp(sun_azimuth_deg[up], grid, hz, period=360.0)
-        terr.append(np.mean(sun_elevation_deg[up] > np.maximum(h_at_sun, 0.0)) * astro)
+    terr, ratio = [], []
+    for i in np.flatnonzero(valid):
+        up = elev2d[i] > 0
+        h_at_sun = np.interp(azim2d[i][up], grid, horizon_deg[i], period=360.0)
+        t = np.mean(elev2d[i][up] > np.maximum(h_at_sun, 0.0)) * astro_pts[i]
+        terr.append(t)
+        ratio.append(t / astro_pts[i] if astro_pts[i] > 0 else np.nan)
     terrain = float(np.median(terr))
     return {
-        "fraction": float(np.median(np.array(terr) / astro)),
+        "fraction": float(np.nanmedian(ratio)),
         "astro": astro,
         "terrain": terrain,
         "points": int(valid.sum()),
