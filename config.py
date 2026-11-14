@@ -116,6 +116,7 @@ COMPOSITION_MINERAL_MAPS = {  # Diviner mineral-abundance rasters, same grid as 
 }
 COMPOSITION_MINERAL_URL = "https://zenodo.org/api/records/4558194/files/{name}/content"
 COMPOSITION_EARTH_LITHOLOGY_PATH = DATA_DIR / "composition_earth_lithology.csv"
+COMPOSITION_EARTH_MINERALS_PATH = DATA_DIR / "composition_earth_minerals.csv"
 COMPOSITION_MOON_MINERALS_PATH = DATA_DIR / "composition_moon_minerals.csv"
 COMPOSITION_MOON_RAW_COMPARISON_PATH = DATA_DIR / "composition_moon_cf_comparison.csv"
 COMPOSITION_CF_PPD = 32  # pixels per degree; the file has no georeferencing: lat +70 (top) .. -70, lon -180 .. 180

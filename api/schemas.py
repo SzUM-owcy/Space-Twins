@@ -170,6 +170,9 @@ class MoonSummary(Model):
     mafic_felsic_percentile: float | None = Field(
         default=None, description="Percentyl składu mafic-felsic (0 = felsic, 1 = mafic) względem Księżyca albo null (np. bieguny)."
     )
+    minerals: dict[str, float] | None = Field(
+        default=None, description="Udziały plagioklaz/piroksen/oliwin łatki Księżyca (Diviner, ±70°); null poza zasięgiem."
+    )
     composition_status: str | None = Field(default=None, description="ok / outside_diviner_cf_coverage / missing; null = nie liczone.")
 
 
@@ -200,7 +203,22 @@ class Analog(Model):
     composition_confidence: str | None = Field(
         default=None, description="high / medium / low / low_quartz_confounder (pewność proxy składu patch'a Ziemi)."
     )
+    composition_source: Literal["aster_mi", "lithology_minerals"] | None = Field(
+        default=None,
+        description="Źródło składnika składu: lithology_minerals = zapas, gdy brak tabeli ASTER (mieszanka minerałów Diviner vs szacunek z litologii Macrostrat, confidence low_lithology_estimate).",
+    )
     earth_mafic_felsic_percentile: float | None = None
+    earth_plagioclase_fraction: float | None = Field(
+        default=None, description="Szacunek (litologia Macrostrat x typowy skład modalny), nie pomiar."
+    )
+    earth_pyroxene_fraction: float | None = None
+    earth_olivine_fraction: float | None = None
+    earth_other_fraction: float | None = Field(default=None, description="Minerały bez odpowiednika na Księżycu (kwarc, skalenie K, węglany, ewaporaty, iły).")
+    earth_mineral_status: Literal["estimated", "no_lithology"] | None = None
+    mineral_distance: float | None = Field(
+        default=None,
+        description="Diagnostyka (poza wynikiem): połowa odległości L1 między składem Księżyca (Diviner: plagioklaz/piroksen/oliwin) i Ziemi (szacunek; minerały bez odpowiednika na Księżycu liczą się jako niezgodność); 0 = identyczne, 1 = rozłączne; null = brak danych.",
+    )
     dominant_lithology: str | None = Field(
         default=None,
         description="Dominująca litologia podłoża (Macrostrat; mafic/felsic/anorthosite/carbonate/evaporite/sedimentary/unconsolidated/unknown). Tylko objaśnienie, nie wchodzi do wyniku.",
