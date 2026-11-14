@@ -1,596 +1,884 @@
-# `moon-analog-lite` — Simple 2-Person Implementation Plan
+# 🌕 moon\-analog\-lite
 
-## Goal
+A lightweight Earth–Moon terrain comparison tool for the **2026 NASA Space Apps Challenge**.
 
-Build the **smallest working version first**:
+The project explores a simple question:
 
-> Select a Moon location → extract terrain features → compare them with Earth terrain → rank similar Earth locations → show results in Streamlit.
+**Given a location on the Moon, which locations on Earth have the most similar terrain characteristics?**
 
-For the beginning, use only **2 datasets**:
+moon\-analog\-lite compares elevation\-derived terrain characteristics from two datasets:
 
-1. **Moon:** LOLA DEM
-2. **Earth:** NASADEM
+- **Earth:** NASADEM elevation data
+- **Moon:** LRO/LOLA lunar topography data
 
-Do **not** add AI/ML, vegetation, temperature, geology, or Mars yet.
+The first version deliberately focuses **only on terrain morphology**. The goal is to build a small, understandable end\-to\-end prototype before introducing additional dimensions such as temperature, geology, illumination, or Mars data.
 
 ---
 
-# 1. MVP Flow
+## 🎯 Project Objective
 
-```text
-Moon LOLA DEM
-    ↓
-10 × 10 km Moon patch
-    ↓
-12 terrain features
-    ↓
-Similarity comparison
-    ↑
-12 terrain features
-    ↑
-10 × 10 km Earth patches
-    ↑
+The application will:
+
+1. Load a selected lunar terrain area.
+2. Extract a **10 km × 10 km** terrain patch.
+3. Convert the patch to a common **85 × 85** analysis grid.
+4. Calculate terrain characteristics.
+5. Perform the same calculation for Earth terrain patches.
+6. Compare lunar and Earth feature vectors.
+7. Rank the most similar Earth locations.
+8. Present the results in a simple Streamlit application.
+
+The result is an **explainable terrain similarity ranking**, not a prediction of whether a location is suitable for a real lunar mission.
+
+---
+
+# 🛰️ Initial Datasets
+
+The MVP intentionally uses only **two datasets**.
+
+## Earth — NASADEM
+
+NASADEM provides elevation data for Earth's land surface.
+
+For this project:
+
 NASADEM
-```
 
-Result:
+   ↓
 
-```text
-Moon location
-    ↓
+Earth DEM
+
+   ↓
+
+10 km × 10 km patches
+
+   ↓
+
+Common 85 × 85 grid
+
+   ↓
+
 Terrain features
-    ↓
-Similarity score
-    ↓
-Top 5 Earth matches
-    ↓
-Streamlit UI
-```
+
+   ↓
+
+earth\_index.csv
+
+Dataset discovery and access:
+
+[NASA Earthdata Search](https://search.earthdata.nasa.gov/?utm_source=%27chatgpt.com%27)
 
 ---
 
-# 2. Split the Work Between Two People
+## Moon — LRO / LOLA
 
-## 👤 Person A — Data & Feature Pipeline
+The Lunar Orbiter Laser Altimeter (LOLA), part of NASA's Lunar Reconnaissance Orbiter mission, provides lunar topographic measurements.
 
-**Responsibility:**
+For this project:
 
-```text
-DEM → patches → features → earth_index.csv
-```
+LOLA
 
-### Main tasks
+ ↓
 
-- [ ] Generate simple mock DEM data
-- [ ] Implement common 10 × 10 km / 85 × 85 grid
-- [ ] Implement `extract_patch_features()`
-- [ ] Read NASADEM
-- [ ] Extract Earth patches
-- [ ] Generate `earth_index.csv`
-- [ ] Read LOLA
-- [ ] Extract Moon patch
-- [ ] Add feature extraction tests
+Moon DEM
 
-### Main interface
+ ↓
 
-```python
-extract_patch_features(
-    patch: np.ndarray,
-    pixel_size_m: float,
-) -> dict
-```
+10 km × 10 km patch
 
-### Output features
+ ↓
 
-```text
-slope_p05
-slope_p10
-slope_p25
-slope_p50
-slope_p75
-slope_p90
-slope_p95
+Common 85 × 85 grid
 
-rms_height
-tri_mean
-relief_range
-hypsometric_integral
-elev_skew
-```
+ ↓
+
+Terrain features
+
+ ↓
+
+Moon feature vector
+
+Resources:
+
+[NASA Planetary Data System](https://pds.nasa.gov/?utm_source=%27chatgpt.com%27)
+
+[NASA LRO Data Archive](https://pds-geosciences.wustl.edu/missions/lro/?utm_source=%27chatgpt.com%27)
 
 ---
 
-## 👤 Person B — Matching & Streamlit
+# 🧠 Core Idea
 
-**Responsibility:**
+Both Earth and Moon data are transformed into the **same representation**.
 
-```text
-features → similarity → ranking → UI
-```
+                 EARTH                      MOON
 
-### Main tasks
+                NASADEM                    LOLA
 
-- [ ] Create temporary/mock `earth_index.csv`
-- [ ] Implement slope distance
-- [ ] Implement shape distance
-- [ ] Implement combined similarity score
-- [ ] Implement `find_analogs()`
-- [ ] Build CLI query
-- [ ] Build basic Streamlit UI
-- [ ] Build comparison plot
-- [ ] Add scoring tests
+                   │                         │
 
-### Main interface
+                   ▼                         ▼
 
-```python
-find_analogs(
-    moon_features,
-    earth_index,
-    top_k=5,
-    slope_weight=0.6,
-)
-```
+                  DEM                       DEM
 
-Example result:
+                   │                         │
 
-```text
-Rank | Earth Region | Distance
-1    | Region A     | 0.42
-2    | Region B     | 0.57
-3    | Region C     | 0.71
-```
+                   ▼                         ▼
+
+             10 km patch                10 km patch
+
+                   │                         │
+
+                   ▼                         ▼
+
+              85 × 85                    85 × 85
+
+                   │                         │
+
+                   ▼                         ▼
+
+            Terrain features          Terrain features
+
+                   │                         │
+
+                   └──────────┬──────────────┘
+
+                              │
+
+                              ▼
+
+                     Similarity Engine
+
+                              │
+
+                              ▼
+
+                      Ranked Earth Sites
+
+                              │
+
+                              ▼
+
+                         Streamlit
+
+This shared representation is the main contract between the Earth and Moon pipelines.
 
 ---
 
-# 3. Shared Contract
+# 📐 Terrain Features
 
-Before starting separate work, agree on the structure of:
+Each terrain patch is converted into the same **12\-feature vector**.
 
-```text
-earth_index.csv
-```
+## Slope distribution
+
+slope\_p05
+
+slope\_p10
+
+slope\_p25
+
+slope\_p50
+
+slope\_p75
+
+slope\_p90
+
+slope\_p95
+
+These describe how steep the terrain is across the patch.
+
+## Terrain shape
+
+rms\_height
+
+tri\_mean
+
+relief\_range
+
+hypsometric\_integral
+
+elev\_skew
+
+These describe properties such as terrain roughness, elevation variation, and elevation distribution.
+
+Both pipelines use the same function:
+
+extract\_patch\_features(
+
+    patch: np.ndarray,
+
+    pixel\_size\_m: float,
+
+) \-> dict
+
+---
+
+# 👥 Parallel Development
+
+The initial work is divided by **dataset**, allowing two people to develop independently.
+
+## 👤 Person A — Earth Pipeline
+
+Responsible for:
+
+NASA Earthdata
+
+      ↓
+
+NASADEM
+
+      ↓
+
+Earth DEM processing
+
+      ↓
+
+10 × 10 km patches
+
+      ↓
+
+85 × 85 common grid
+
+      ↓
+
+12 terrain features
+
+      ↓
+
+earth\_index.csv
+
+### Initial tasks
+
+- [ ] Download one small NASADEM area.
+- [ ] Load the DEM with Rasterio.
+- [ ] Convert the selected area to the common metric grid.
+- [ ] Extract one 10 km × 10 km patch.
+- [ ] Calculate the 12 terrain features.
+- [ ] Save the results to CSV.
+- [ ] Expand from one patch to multiple Earth patches.
+- [ ] Add tests for Earth preprocessing.
+
+Start with **one Earth region**.
+
+Do not attempt a global search initially.
+
+---
+
+## 👤 Person B — Moon Pipeline
+
+Responsible for:
+
+NASA PDS
+
+    ↓
+
+LRO / LOLA
+
+    ↓
+
+Moon DEM processing
+
+    ↓
+
+10 × 10 km patch
+
+    ↓
+
+85 × 85 common grid
+
+    ↓
+
+12 terrain features
+
+    ↓
+
+Moon feature vector
+
+### Initial tasks
+
+- [ ] Download one small LOLA DEM.
+- [ ] Load the DEM with Rasterio.
+- [ ] Select one lunar location.
+- [ ] Extract a 10 km × 10 km area.
+- [ ] Convert it to the common 85 × 85 grid.
+- [ ] Calculate the same 12 terrain features.
+- [ ] Save the resulting feature vector.
+- [ ] Add tests for lunar preprocessing.
+
+Start with **one Moon location**.
+
+A possible development benchmark is:
+
+Marius Hills
+
+Latitude:   14.0
+
+Longitude: \-56.0
+
+The benchmark is initially being used to develop and verify the algorithm, not as a claim that it is the optimal location for a future lunar base.
+
+---
+
+# 🤝 Shared Data Contract
+
+Both pipelines must produce compatible feature records.
 
 Example:
 
-```csv
-patch_id,region_name,center_lat,center_lon,slope_p05,slope_p10,slope_p25,slope_p50,slope_p75,slope_p90,slope_p95,rms_height,tri_mean,relief_range,hypsometric_integral,elev_skew
-earth_001,region_a,35.4,-111.5,1.2,2.0,3.1,4.2,5.7,8.1,10.2,42.0,12.5,180.0,0.43,0.31
-```
+patch\_id
 
-This becomes the boundary between both people:
+source
 
-```text
-Person A
+center\_lat
 
-DEM
- ↓
-Feature extraction
- ↓
-earth_index.csv
+center\_lon
 
---------------------
-SHARED CONTRACT
---------------------
+slope\_p05
 
-Person B
+slope\_p10
 
-earth_index.csv
- ↓
-Similarity
- ↓
-Ranking
- ↓
-Streamlit
-```
+slope\_p25
 
-Person B does **not** need to wait for Person A.
+slope\_p50
 
-Person B can create a mock CSV and start implementing the application immediately.
+slope\_p75
 
----
+slope\_p90
 
-# 4. Milestone 1 — Mock End-to-End Prototype
+slope\_p95
 
-## Goal
+rms\_height
 
-Prove that the architecture works **without NASA data**.
+tri\_mean
 
-### 👤 Person A
+relief\_range
 
-Generate three simple synthetic terrains:
+hypsometric\_integral
 
-```text
-Crater
-Cone
-Flat terrain
-```
+elev\_skew
 
-Then:
+Example Earth output:
 
-```text
-Mock DEM
-   ↓
-Feature extraction
-   ↓
-mock_earth_index.csv
-```
+patch\_id,source,center\_lat,center\_lon,slope\_p50,rms\_height,tri\_mean,relief\_range
 
-### 👤 Person B
+earth\_001,NASADEM,35.4,\-111.5,4.2,42.0,12.5,180.0
 
-Create a temporary `mock_earth_index.csv` and implement:
+The complete implementation contains all 12 terrain features.
 
-```text
-Features
-   ↓
-Similarity scoring
-   ↓
-Ranking
-   ↓
-Streamlit
-```
+The two pipelines should be considered compatible when:
 
-### Milestone complete when
+set(earth\_features.keys()) == set(moon\_features.keys())
 
-```bash
-pytest -v
-streamlit run app.py
-```
-
-works and the application shows something like:
-
-```text
-Moon mock crater
-
-Top Earth matches:
-
-1. Earth crater
-2. Earth cone
-3. Flat terrain
-```
+for the terrain\-feature fields.
 
 ---
 
-# 5. Milestone 2 — Add Real Earth Data
+# 🏗️ Project Structure
 
-## Goal
+Planned repository structure:
 
-Replace mock Earth terrain with NASADEM.
+moon\-analog\-lite/
 
-### 👤 Person A
+├── README.md
 
-Implement:
+├── requirements.txt
 
-```text
+├── config.py
+
+├── app.py
+
+│
+
+├── 0\_download\_data.py
+
+├── 1\_build\_index.py
+
+├── 2\_find\_analogs.py
+
+├── 3\_plot\_match.py
+
+│
+
+├── src/
+
+│   ├── \_\_init\_\_.py
+
+│   ├── contracts.py
+
+│   ├── raster\_io.py
+
+│   ├── morphometry.py
+
+│   ├── scoring.py
+
+│   ├── query.py
+
+│   └── plotting.py
+
+│
+
+├── tests/
+
+│   ├── test\_morphometry.py
+
+│   ├── test\_scoring.py
+
+│   └── test\_pipeline.py
+
+│
+
+├── data/
+
+│   ├── nasadem/
+
+│   ├── lola/
+
+│   └── earth\_index.csv
+
+│
+
+└── outputs/
+
+    ├── latest\_query.json
+
+    └── analog\_comparison.png
+
+---
+
+# 🚀 Milestones
+
+## Milestone 0 — Define the Contract
+
+**Together**
+
+Before implementing the individual pipelines:
+
+- [ ] Agree on patch size: **10 km × 10 km**
+- [ ] Agree on analysis grid: **85 × 85**
+- [ ] Agree on feature names.
+- [ ] Agree on feature units.
+- [ ] Define extract\_patch\_features().
+- [ ] Define CSV/output schema.
+
+---
+
+## Milestone 1 — Independent Data Pipelines
+
+Work completely in parallel.
+
+### Earth
+
 NASADEM
-   ↓
-Terrain preprocessing
-   ↓
-10 × 10 km patches
-   ↓
+
+   ↓
+
+one DEM
+
+   ↓
+
+one 85 × 85 patch
+
+   ↓
+
 12 features
-   ↓
-earth_index.csv
-```
 
-For the first version, use only **2–3 Earth regions**.
+### Moon
 
-Do not start with all 15 candidate regions.
+LOLA
 
-### 👤 Person B
+ ↓
 
-No major changes should be required.
+one DEM
 
-Replace:
+ ↓
 
-```text
-mock_earth_index.csv
-```
+one 85 × 85 patch
 
-with:
+ ↓
 
-```text
-earth_index.csv
-```
+12 features
 
-### Milestone complete when
+### Success
 
-```text
-Real NASADEM
-     ↓
-Earth feature index
-     ↓
-Existing similarity algorithm
-     ↓
-Ranking works
-```
+Both pipelines independently produce compatible feature vectors.
 
 ---
 
-# 6. Milestone 3 — Add Real Moon Data
+## Milestone 2 — First Earth–Moon Comparison
 
-## Goal
+Combine both outputs:
 
-Replace the mock Moon patch with LOLA data.
+Earth features
 
-### 👤 Person A
+      │
 
-Start with **one Moon location only**.
+      ▼
 
-For example:
+   Compare
 
-```text
-Marius Hills
-```
+      ▲
+
+      │
+
+Moon features
+
+Calculate:
+
+Slope distance
+
+      \+
+
+Terrain shape distance
+
+      =
+
+Combined distance
+
+Lower distance means the terrain profiles are more similar according to the selected metrics.
+
+---
+
+## Milestone 3 — Build Earth Index
+
+Expand the Earth pipeline:
+
+1 Earth patch
+
+     ↓
+
+10 patches
+
+     ↓
+
+100\+ patches
+
+     ↓
+
+earth\_index.csv
+
+Each row represents one Earth terrain patch and its feature vector.
+
+---
+
+## Milestone 4 — Find Top\-K Analogs
 
 Implement:
 
-```text
-LOLA DEM
-   ↓
-10 × 10 km Moon patch
-   ↓
-85 × 85 common grid
-   ↓
-12 terrain features
-```
+find\_analogs(
 
-### 👤 Person B
+    moon\_features,
 
-Connect the Moon features to the existing matching function:
+    earth\_index,
 
-```text
-Moon features
-      ↓
-find_analogs()
-      ↓
-Top 5 Earth matches
-```
+    top\_k=5,
 
-### Milestone complete when
+)
 
-```bash
-python 2_find_analogs.py \
-    --lat 14.0 \
-    --lon -56.0 \
-    --top-k 5
-```
+Example:
 
-returns results using real Moon and Earth terrain data.
+Moon location: Marius Hills
+
+Rank \| Earth Region \| Distance
+
+\-\-\-\-\-\|\-\-\-\-\-\-\-\-\-\-\-\-\-\-\|\-\-\-\-\-\-\-\-\-
+
+1    \| Region A     \| 0.31
+
+2    \| Region B     \| 0.38
+
+3    \| Region C     \| 0.44
+
+4    \| Region D     \| 0.51
+
+5    \| Region E     \| 0.57
 
 ---
 
-# 7. Milestone 4 — Streamlit MVP
+## Milestone 5 — Streamlit MVP
 
-Keep the first UI very simple.
+Create a lightweight UI:
 
-```text
-Moon Analog Finder
+🌕 Moon Analog Finder
 
 Moon location:
+
 [Marius Hills ▼]
 
-Slope importance:
-[------●----]
+Slope / terrain weighting:
 
-Top results:
+[━━━━━━━━●━━]
 
-1. Earth Region A
-2. Earth Region B
-3. Earth Region C
+[ Find Analogs ]
 
-[Comparison Plot]
-```
+Top Earth Matches
 
-## UI Features
+1\. Region A
 
-Only implement:
+2\. Region B
 
-- [ ] Moon benchmark selection
-- [ ] Custom latitude/longitude
-- [ ] Top-K selection
-- [ ] Slope/shape weight
-- [ ] `Find Analogs` button
-- [ ] Ranked results table
-- [ ] Comparison plot
-- [ ] Short limitations warning
+3\. Region C
 
-Do not add complicated interactive maps yet.
+Moon Terrain     Earth Terrain
 
----
+Slope distance: 0.21
 
-# 8. Milestone 5 — Demo Ready
+Shape distance: 0.42
 
-Only start this milestone once the complete MVP works.
+Total distance: 0.31
 
-Possible improvements:
+Initial UI scope:
 
-- [ ] Add 2–3 Moon locations
-- [ ] Add more Earth regions
-- [ ] Improve comparison plots
-- [ ] Show data provenance
-- [ ] Show slope vs. shape score
-- [ ] Explain why each match ranked highly
-- [ ] Improve Streamlit styling
-- [ ] Add download results button
-- [ ] Prepare README
-- [ ] Prepare hackathon demo/presentation
+- [ ] Select predefined Moon location.
+- [ ] Enter custom latitude/longitude.
+- [ ] Select Top\-K.
+- [ ] Adjust slope/shape weighting.
+- [ ] Run comparison.
+- [ ] Display ranked Earth sites.
+- [ ] Show terrain comparison plot.
+- [ ] Show individual similarity components.
+- [ ] Show project limitations.
 
 ---
 
-# 9. Parallel Development Flow
+# ✅ Definition of MVP
 
-```text
-                    START
-                      │
-             Agree on contracts
-                      │
-          ┌───────────┴───────────┐
-          │                       │
-     👤 Person A             👤 Person B
-          │                       │
-     Mock DEMs              Mock feature CSV
-          │                       │
- Feature extraction             Scoring
-          │                       │
-  NASADEM pipeline               CLI
-          │                       │
-    LOLA pipeline             Streamlit
-          │                       │
-          └───────────┬───────────┘
-                      │
-                 INTEGRATION
-                      │
-               Real Earth DEM
-                      │
-               Real Moon DEM
-                      │
-                Full ranking
-                      │
-               Streamlit MVP
-                      │
-                    DEMO
-```
+The MVP is complete when this path works:
 
----
+Real NASADEM Earth data
 
-# 10. Recommended First Sprint
+           ↓
 
-Keep the first sprint **very small**.
+     Earth features
 
-## 👤 Person A
+           │
 
-### Task A1
+           │
 
-Generate:
+           ▼
 
-```text
-crater.tif
-cone.tif
-flat.tif
-```
+     Similarity engine
 
-### Task A2
+           ▲
 
-Implement:
+           │
 
-```python
-extract_patch_features()
-```
+      Moon features
 
-### Task A3
+           ↑
 
-Generate:
+ Real LOLA Moon data
 
-```text
-mock_earth_index.csv
-```
+           │
 
-### Task A4
+           ▼
 
-Write feature tests.
+    Top Earth matches
+
+           │
+
+           ▼
+
+      Streamlit UI
+
+The goal is **not** initially to search the entire Earth.
+
+The goal is to prove that the complete pipeline works correctly for a small number of locations.
 
 ---
 
-## 👤 Person B
+# 🔬 Scientific Scope
 
-### Task B1
+The first version measures **terrain similarity only**.
 
-Create a temporary:
+The score should be interpreted as:
 
-```text
-mock_earth_index.csv
-```
+Similarity between selected elevation\-derived terrain characteristics.
 
-### Task B2
+It should **not** be interpreted as:
 
-Implement:
+- probability that two environments are equivalent;
+- lunar landing\-site suitability;
+- habitat suitability;
+- mission safety;
+- geological equivalence;
+- NASA endorsement of an Earth analog.
 
-```python
-find_analogs()
-```
-
-### Task B3
-
-Write ranking tests.
-
-### Task B4
-
-Create:
-
-```text
-app.py
-```
-
-with a basic Streamlit interface.
+Earth cannot reproduce many important lunar conditions, including lunar gravity, vacuum, radiation environment, dust properties, and thermal behavior.
 
 ---
 
-# 11. Definition of First Success
+# 🔭 Future Development
 
-Do **not** define the first success as:
+## Phase 2 — Temperature
 
-> We downloaded and processed all NASA data.
+After terrain works, investigate:
 
-Instead, the first success should be:
+[LRO Diviner Lunar Data](https://pds-geosciences.wustl.edu/missions/lro/diviner.htm?utm_source=%27chatgpt.com%27)
 
-```text
-Mock Moon terrain
-       ↓
-12 features
-       ↓
-Similarity algorithm
-       ↓
-Mock Earth terrains
-       ↓
-Correct ranking
-       ↓
-Streamlit displays results
-```
+The model could then become:
 
-Once this works, replace the mock inputs **one at a time**:
+Analog similarity
 
-```text
-STEP 1
+      │
 
-Mock Earth
-    ↓
-Real NASADEM
-```
+      ├── Terrain similarity
 
-Then:
+      │      ├── slope
 
-```text
-STEP 2
+      │      ├── roughness
 
-Mock Moon
-    ↓
-Real LOLA
-```
+      │      └── relief
 
-Final MVP:
+      │
 
-```text
-Real LOLA Moon terrain
-          ↓
-     12 features
-          ↓
- Similarity engine
-          ↑
-     12 features
-          ↑
-Real NASADEM Earth terrain
-          ↓
-    Top 5 matches
-          ↓
-     Streamlit UI
-```
+      └── Thermal similarity
+
+             ├── temperature range
+
+             ├── minimum temperature
+
+             └── thermal extremes
+
+An appropriate NASA Earth\-observation temperature dataset would need to be selected for the Earth side before implementing this phase.
 
 ---
 
-# Key Principle
+## Phase 3 — Additional Characteristics
 
-**Make the algorithm work with fake/simple data first.**
+Possible future dimensions:
 
-Then gradually introduce real NASA data.
+Terrain
 
-This allows both people to work in parallel and prevents geospatial/data-access problems from blocking development of the scoring algorithm and UI.
+\+
+
+Temperature
+
+\+
+
+Illumination
+
+\+
+
+Surface/geological characteristics
+
+\+
+
+Ice/resource indicators
+
+Each dimension should remain an independent, explainable component of the final similarity score.
+
+---
+
+## Phase 4 — Mars
+
+Once the architecture works for:
+
+Earth ↔ Moon
+
+extend the target pipeline to:
+
+Earth ↔ Moon
+
+Earth ↔ Mars
+
+The same high\-level architecture can remain:
+
+Planetary dataset
+
+       ↓
+
+Common representation
+
+       ↓
+
+Feature extraction
+
+       ↓
+
+Similarity engine
+
+       ↓
+
+Earth analog ranking
+
+---
+
+# 🧪 Development Principle
+
+Always implement the smallest version first.
+
+ONE Earth patch
+
+\+
+
+ONE Moon patch
+
+        ↓
+
+Feature comparison
+
+        ↓
+
+Does it work?
+
+        ↓
+
+YES
+
+        ↓
+
+More Earth patches
+
+        ↓
+
+More Moon locations
+
+        ↓
+
+Streamlit
+
+        ↓
+
+Additional datasets
+
+Do not add new datasets until the previous comparison works end\-to\-end.
+
+---
+
+# 🌌 NASA Space Apps Challenge
+
+This project is being developed for the:
+
+**2026 NASA Space Apps Challenge**
+
+Challenge:
+
+**Identify Earth Locations that Analog the Permanent Moon Base Locations and Mars**
+
+Challenge resources:
+
+[Official Challenge Resources](https://www.spaceappschallenge.org/2026/challenges/permanent-moon-base-locations-and-mars/?tab=resources)
+
+The initial MVP focuses specifically on the challenge's **terrain and topography** dimension.
+
+---
+
+# ⚠️ Current Status
+
+**Early prototype / proof of concept.**
+
+Current focus:
+
+NASADEM
+
+   ↕
+
+terrain comparison
+
+   ↕
+
+LOLA
+
+The initial candidate regions and lunar benchmarks are used to develop and verify the algorithm.
+
+They should not yet be considered scientifically validated planetary analog classifications.
+
