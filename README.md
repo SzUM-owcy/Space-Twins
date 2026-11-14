@@ -97,6 +97,37 @@ uv run --frozen python 3_plot_match.py --site marius_hills            # -> outpu
 
 Status document for the Earth side: [src/README-personA.md](src/README-personA.md).
 
+### Thermal-range feature (optional, experimental)
+
+A second comparison feature, `thermal_range_percentile`, ranks how thermally variable a patch is
+within its own body. It lives in side tables keyed by `patch_id`, so the 17-column CONTRACT index CSVs
+are unchanged and terrain-only queries still work.
+
+| Body | Source | Range definition |
+|------|--------|------------------|
+| Earth | MODIS 11A2 v061 (Terra + Aqua, 1 km, 8-day, day + night, 2024) via Planetary Computer | per-pixel P95 - P05 of all valid observations (QA bits 0-1 < 2, at least 100 obs), median over the patch pixels |
+| Moon | LRO Diviner Global Cumulative Product `tbol` (0.5 deg cell, 96 local-time bins) read by HTTP range request | P95 - P05 over the cell's valid local-time bins (at least 40) |
+
+Both ranges are converted to a percentile against their own reference (Earth: all valid indexed patches;
+Moon: 1654 area-uniform cells on a 5 deg grid). Reference files are versioned in `data/processed/`.
+
+```bash
+uv run --frozen python 1c_build_thermal.py earth       # resumable per region -> data/thermal_earth.csv
+uv run --frozen python 1c_build_thermal.py moon        # -> data/thermal_moon.csv, thermal_moon_grid.csv
+uv run --frozen python 1c_build_thermal.py finalize    # references + thermal_range_percentile
+uv run --frozen python 2_find_analogs.py --site apollo_11 --w-thermal 0.2   # 0 = terrain only
+```
+
+`total_distance = (1 - w) * terrain_distance + w * thermal_distance`, with
+`thermal_distance = sqrt(6) * |percentile difference|` (z-score-like scale). The CLI output and
+`outputs/latest_query.json` show `terrain_distance`, `thermal_distance`, `thermal_status`; patches without
+thermal data (`missing`) fall back to terrain only.
+
+Limitations: the percentile gives a relative ranking, not an absolute thermal equivalence. Earth values mix
+seasonal and diurnal variation at fixed overpass times and include an atmosphere; Moon values are the full
+diurnal cycle in vacuum. Polar-night / cloudy patches (e.g. `haughton`, `schirmacher_oasis`) are `missing`.
+The 0.20 default weight is an experimental setting.
+
 ### Run tests
 
 ```bash
