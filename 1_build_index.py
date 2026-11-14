@@ -115,6 +115,22 @@ REGIONS = [
     Region("saririaky", "nasadem", (46.0, -23.7, 46.25, -23.42), stride_km=5),  # anorthosite massif
     Region("white_sands", "nasadem", (-106.45, 32.7, -105.95, 33.0), stride_km=5),  # gypsum dunes
     Region("sverrefjell", "copdem", (13.05, 79.35, 13.6, 79.5), stride_km=2.5),  # Arctic volcano
+    # phase 5: gap-filling candidates from the analog research brief (compact impact structures, rugged desert
+    # mountains, young lava fields, polar badlands); screening bboxes, check the water/vegetation rejects after a build
+    Region("makhtesh_ramon", "nasadem", (34.55, 30.48, 35.05, 30.72), stride_km=5),  # erosional crater, steep walls
+    Region("tin_bider", "nasadem", (4.85, 27.35, 5.4, 27.85), stride_km=5),  # impact structure
+    Region("gweni_fada", "nasadem", (21.35, 16.95, 22.15, 17.55)),  # eroded impact structure
+    Region("jebel_shams", "nasadem", (56.9, 22.95, 57.65, 23.5)),  # bare limestone mountains and canyons
+    Region("nabro", "nasadem", (41.35, 13.05, 42.05, 13.65)),  # young caldera and lava
+    Region("pico_do_fogo", "nasadem", (-24.55, 14.78, -24.15, 15.1), stride_km=5),  # caldera, cone, young lava
+    Region("waqf_as_suwwan", "nasadem", (36.55, 30.8, 37.05, 31.3), stride_km=5),  # impact structure
+    Region("harrat_lunayyir", "nasadem", (37.4, 24.9, 38.1, 25.5)),  # basaltic cones and lava
+    Region("zuni_bandera", "nasadem", (-108.4, 34.5, -107.6, 35.1)),  # lava flows and vents (woodland margins)
+    Region("carrizozo", "nasadem", (-106.15, 33.55, -105.75, 34.05), stride_km=5),  # long basalt flow
+    Region("ol_doinyo_lengai", "nasadem", (35.65, -3.05, 36.15, -2.5), stride_km=5),  # steep stratovolcano
+    Region("bayuda", "nasadem", (32.3, 18.0, 33.1, 18.6)),  # desert cones, craters, lava
+    Region("axel_heiberg_colour_peak", "copdem", (-91.3, 79.15, -90.0, 79.6), stride_km=5),  # polar badlands
+    Region("pingualuit", "copdem", (-74.1, 61.05, -73.2, 61.5), stride_km=5),  # fresh polar crater (lake)
 ]
 
 
