@@ -1,6 +1,6 @@
 """Cut one Earth patch (default: Meteor Crater) and save a hillshade picture.
 
-    uv run python earth/demo_patch.py [--lat 35.03 --lon -111.02]
+    uv run python demo_patch.py [--lat 35.03 --lon -111.02]
 """
 import argparse
 
@@ -13,8 +13,10 @@ from matplotlib.colors import LightSource
 from rasterio.merge import merge
 
 from config import NASADEM_DIR, NASADEM_NODATA, OUTPUT_DIR, PIXEL_SIZE_M
-from download_nasadem import download_tiles
-from raster_io import extract_patch
+from importlib import import_module
+
+download_tiles = import_module("0_download_earth").download_tiles
+from src.raster_io import extract_patch
 
 p = argparse.ArgumentParser()
 p.add_argument("--lat", type=float, default=35.03)

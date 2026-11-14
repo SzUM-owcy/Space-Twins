@@ -1,7 +1,7 @@
 """Shared constants (CONTRACT §1, §2, §6)."""
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 NASADEM_DIR = DATA_DIR / "nasadem"
 OUTPUT_DIR = ROOT / "outputs"

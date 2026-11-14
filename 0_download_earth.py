@@ -1,6 +1,6 @@
 """Download NASADEM 1x1 deg tiles covering a bbox from Planetary Computer and inspect them.
 
-    uv run python earth/download_nasadem.py [--bbox W S E N]
+    uv run python 0_download_earth.py [--bbox W S E N]
 
 If Python SSL fails (WSL/proxy), set REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt.
 """

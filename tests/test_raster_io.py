@@ -5,7 +5,7 @@ from rasterio.transform import from_origin
 from rasterio.warp import transform as warp_transform
 
 from config import GRID_N, MOON_RADIUS_M, PIXEL_SIZE_M
-from raster_io import aeqd_crs, extract_patch
+from src.raster_io import aeqd_crs, extract_patch
 
 NODATA = -32768
 M_PER_DEG = 111_000
