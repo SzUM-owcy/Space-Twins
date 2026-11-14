@@ -1,0 +1,1055 @@
+{
+  "components": {
+    "schemas": {
+      "Analog": {
+        "additionalProperties": false,
+        "properties": {
+          "features": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Features",
+            "type": "object"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "title": "Lon",
+            "type": "number"
+          },
+          "patch_id": {
+            "title": "Patch Id",
+            "type": "string"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "region_name": {
+            "title": "Region Name",
+            "type": "string"
+          },
+          "shape_distance": {
+            "title": "Shape Distance",
+            "type": "number"
+          },
+          "slope_distance": {
+            "title": "Slope Distance",
+            "type": "number"
+          },
+          "source": {
+            "enum": [
+              "NASADEM",
+              "COPDEM"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "total_distance": {
+            "description": "Mniejsza = bardziej podobny teren.",
+            "title": "Total Distance",
+            "type": "number"
+          },
+          "z_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Z Scores",
+            "type": "object"
+          }
+        },
+        "required": [
+          "rank",
+          "patch_id",
+          "region",
+          "region_name",
+          "source",
+          "lat",
+          "lon",
+          "slope_distance",
+          "shape_distance",
+          "total_distance",
+          "features",
+          "z_scores"
+        ],
+        "title": "Analog",
+        "type": "object"
+      },
+      "AnalogsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "max_per_region": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 1,
+            "description": "Maks. łatek z jednego regionu w rankingu; null = bez limitu.",
+            "title": "Max Per Region"
+          },
+          "moon": {
+            "$ref": "#/components/schemas/MoonQuery"
+          },
+          "top_k": {
+            "default": 5,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Top K",
+            "type": "integer"
+          },
+          "w_slope": {
+            "default": 0.5,
+            "description": "Waga nachyleń; (1 - w_slope) = waga kształtu.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "W Slope",
+            "type": "number"
+          }
+        },
+        "required": [
+          "moon"
+        ],
+        "title": "AnalogsRequest",
+        "type": "object"
+      },
+      "AnalogsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "max_per_region": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Per Region"
+          },
+          "moon": {
+            "$ref": "#/components/schemas/MoonSummary"
+          },
+          "out_of_range": {
+            "description": "Cechy Księżyca z |z| > out_of_range_z: ranking mniej wiarygodny - pokaż ostrzeżenie.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Out Of Range",
+            "type": "array"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Analog"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "top_k": {
+            "title": "Top K",
+            "type": "integer"
+          },
+          "w_slope": {
+            "title": "W Slope",
+            "type": "number"
+          }
+        },
+        "required": [
+          "moon",
+          "w_slope",
+          "top_k",
+          "max_per_region",
+          "out_of_range",
+          "results"
+        ],
+        "title": "AnalogsResponse",
+        "type": "object"
+      },
+      "EarthRegion": {
+        "additionalProperties": false,
+        "properties": {
+          "bbox": {
+            "description": "[west, south, east, north] w stopniach.",
+            "maxItems": 4,
+            "minItems": 4,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Bbox",
+            "type": "array"
+          },
+          "dem": {
+            "enum": [
+              "nasadem",
+              "copdem"
+            ],
+            "title": "Dem",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "patches": {
+            "description": "Liczba łatek tego regionu w indeksie Ziemi.",
+            "title": "Patches",
+            "type": "integer"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "validation": {
+            "description": "true = region z udokumentowanym analogiem księżycowym (walidacja).",
+            "title": "Validation",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "region",
+          "name",
+          "dem",
+          "validation",
+          "bbox",
+          "patches"
+        ],
+        "title": "EarthRegion",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "description": "Każdy błąd (4xx/5xx) ma ten kształt.",
+        "properties": {
+          "code": {
+            "enum": [
+              "INVALID_REQUEST",
+              "NOT_FOUND",
+              "PATCH_REJECTED",
+              "RASTER_UNAVAILABLE",
+              "INTERNAL_ERROR"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Szczegóły walidacji (INVALID_REQUEST).",
+            "title": "Details"
+          },
+          "message": {
+            "description": "Komunikat czytelny dla człowieka (można pokazać w UI).",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "FeatureInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "group": {
+            "enum": [
+              "slope",
+              "shape"
+            ],
+            "title": "Group",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "description": "Jednostka (\"°\", \"m\" albo \"\" dla cech bezwymiarowych).",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "group",
+          "unit",
+          "description"
+        ],
+        "title": "FeatureInfo",
+        "type": "object"
+      },
+      "Health": {
+        "additionalProperties": false,
+        "properties": {
+          "custom_coordinates_available": {
+            "description": "false, gdy na tej maszynie brak rastra LOLA: POST /analogs z lat/lon zwróci RASTER_UNAVAILABLE.",
+            "title": "Custom Coordinates Available",
+            "type": "boolean"
+          },
+          "earth_patches": {
+            "title": "Earth Patches",
+            "type": "integer"
+          },
+          "moon_sites": {
+            "title": "Moon Sites",
+            "type": "integer"
+          },
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "custom_coordinates_available",
+          "moon_sites",
+          "earth_patches"
+        ],
+        "title": "Health",
+        "type": "object"
+      },
+      "Meta": {
+        "additionalProperties": false,
+        "properties": {
+          "default_top_k": {
+            "title": "Default Top K",
+            "type": "integer"
+          },
+          "default_w_slope": {
+            "title": "Default W Slope",
+            "type": "number"
+          },
+          "features": {
+            "description": "12 cech w kolejności kontraktu (CONTRACT §3).",
+            "items": {
+              "$ref": "#/components/schemas/FeatureInfo"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "grid_n": {
+            "title": "Grid N",
+            "type": "integer"
+          },
+          "limitations": {
+            "description": "Ograniczenia interpretacji - mają być widoczne w UI.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "out_of_range_z": {
+            "description": "Próg |z|, powyżej którego cecha Księżyca trafia do out_of_range.",
+            "title": "Out Of Range Z",
+            "type": "number"
+          },
+          "patch_size_m": {
+            "title": "Patch Size M",
+            "type": "integer"
+          },
+          "pixel_size_m": {
+            "title": "Pixel Size M",
+            "type": "number"
+          }
+        },
+        "required": [
+          "patch_size_m",
+          "grid_n",
+          "pixel_size_m",
+          "default_w_slope",
+          "default_top_k",
+          "out_of_range_z",
+          "features",
+          "limitations"
+        ],
+        "title": "Meta",
+        "type": "object"
+      },
+      "MoonQuery": {
+        "additionalProperties": false,
+        "description": "Miejsce na Księżycu: ALBO ``site_id`` ALBO para ``lat`` + ``lon``.",
+        "properties": {
+          "lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
+          },
+          "site_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              "moon_apollo_11"
+            ],
+            "title": "Site Id"
+          }
+        },
+        "title": "MoonQuery",
+        "type": "object"
+      },
+      "MoonSite": {
+        "additionalProperties": false,
+        "properties": {
+          "features": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Features",
+            "type": "object"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "description": "Stopnie, wschód dodatni, -180..180.",
+            "title": "Lon",
+            "type": "number"
+          },
+          "name": {
+            "description": "Nazwa do wyświetlenia, np. Apollo 11.",
+            "title": "Name",
+            "type": "string"
+          },
+          "site_id": {
+            "description": "= patch_id, np. moon_apollo_11.",
+            "title": "Site Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "site_id",
+          "name",
+          "lat",
+          "lon",
+          "features"
+        ],
+        "title": "MoonSite",
+        "type": "object"
+      },
+      "MoonSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "features": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Surowe wartości 12 cech.",
+            "title": "Features",
+            "type": "object"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "title": "Lon",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "site_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Id"
+          },
+          "z_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Cechy po log1p + z-score względem indeksu Ziemi (CONTRACT §5).",
+            "title": "Z Scores",
+            "type": "object"
+          }
+        },
+        "required": [
+          "site_id",
+          "name",
+          "lat",
+          "lon",
+          "features",
+          "z_scores"
+        ],
+        "title": "MoonSummary",
+        "type": "object"
+      },
+      "PatchGrid": {
+        "additionalProperties": false,
+        "description": "Siatka wysokości łatki 10x10 km. ``heights_m[row][col]``; row 0 = północ, col 0 = zachód.",
+        "properties": {
+          "body": {
+            "enum": [
+              "moon",
+              "earth"
+            ],
+            "title": "Body",
+            "type": "string"
+          },
+          "grid_n": {
+            "title": "Grid N",
+            "type": "integer"
+          },
+          "heights_m": {
+            "description": "grid_n x grid_n, metry (zaokrąglone do 0.01 m).",
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Heights M",
+            "type": "array"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "title": "Lon",
+            "type": "number"
+          },
+          "max_m": {
+            "title": "Max M",
+            "type": "number"
+          },
+          "min_m": {
+            "title": "Min M",
+            "type": "number"
+          },
+          "patch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null dla łatki Księżyca wyciętej z własnych współrzędnych.",
+            "title": "Patch Id"
+          },
+          "pixel_size_m": {
+            "title": "Pixel Size M",
+            "type": "number"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "size_m": {
+            "title": "Size M",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "patch_id",
+          "body",
+          "region",
+          "lat",
+          "lon",
+          "size_m",
+          "grid_n",
+          "pixel_size_m",
+          "min_m",
+          "max_m",
+          "heights_m"
+        ],
+        "title": "PatchGrid",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Kontrakt między backendem a frontendem. Podobieństwo cech terenu (DEM), a nie przydatność lądowiska - zob. GET /meta -> limitations.",
+    "title": "Moon -> Earth terrain analogs API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/analogs": {
+      "post": {
+        "description": "Ranking najbardziej podobnych łatek Ziemi dla miejsca na Księżycu.",
+        "operationId": "post_analogs_api_v1_analogs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalogsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalogsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Post Analogs",
+        "tags": [
+          "analogs"
+        ]
+      }
+    },
+    "/api/v1/earth/patches/{patch_id}": {
+      "get": {
+        "operationId": "get_earth_patch_api_v1_earth_patches__patch_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patch_id",
+            "required": true,
+            "schema": {
+              "title": "Patch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchGrid"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get Earth Patch",
+        "tags": [
+          "earth"
+        ]
+      }
+    },
+    "/api/v1/earth/regions": {
+      "get": {
+        "operationId": "get_earth_regions_api_v1_earth_regions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EarthRegion"
+                  },
+                  "title": "Response Get Earth Regions Api V1 Earth Regions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get Earth Regions",
+        "tags": [
+          "earth"
+        ]
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "get_health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Health",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/v1/meta": {
+      "get": {
+        "operationId": "get_meta_api_v1_meta_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Meta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get Meta",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/api/v1/moon/patch": {
+      "get": {
+        "description": "Siatka wysokości łatki Księżyca: ``?site_id=moon_apollo_11`` albo ``?lat=..&lon=..``.",
+        "operationId": "get_moon_patch_api_v1_moon_patch_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "site_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "examples": [
+                "moon_apollo_11"
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lon",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lon"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchGrid"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Get Moon Patch",
+        "tags": [
+          "moon"
+        ]
+      }
+    },
+    "/api/v1/moon/sites": {
+      "get": {
+        "operationId": "get_moon_sites_api_v1_moon_sites_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MoonSite"
+                  },
+                  "title": "Response Get Moon Sites Api V1 Moon Sites Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get Moon Sites",
+        "tags": [
+          "moon"
+        ]
+      }
+    }
+  }
+}

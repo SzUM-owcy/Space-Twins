@@ -1,0 +1,89 @@
+{
+ "patch_size_m": 10000,
+ "grid_n": 85,
+ "pixel_size_m": 117.6470588235294,
+ "default_w_slope": 0.5,
+ "default_top_k": 5,
+ "out_of_range_z": 3.0,
+ "features": [
+  {
+   "name": "slope_p05",
+   "group": "slope",
+   "unit": "°",
+   "description": "5th percentile of slope."
+  },
+  {
+   "name": "slope_p10",
+   "group": "slope",
+   "unit": "°",
+   "description": "10th percentile of slope."
+  },
+  {
+   "name": "slope_p25",
+   "group": "slope",
+   "unit": "°",
+   "description": "25th percentile of slope."
+  },
+  {
+   "name": "slope_p50",
+   "group": "slope",
+   "unit": "°",
+   "description": "50th percentile of slope."
+  },
+  {
+   "name": "slope_p75",
+   "group": "slope",
+   "unit": "°",
+   "description": "75th percentile of slope."
+  },
+  {
+   "name": "slope_p90",
+   "group": "slope",
+   "unit": "°",
+   "description": "90th percentile of slope."
+  },
+  {
+   "name": "slope_p95",
+   "group": "slope",
+   "unit": "°",
+   "description": "95th percentile of slope."
+  },
+  {
+   "name": "rms_height",
+   "group": "shape",
+   "unit": "m",
+   "description": "RMS of heights after removing the best-fit plane (roughness)."
+  },
+  {
+   "name": "tri_mean",
+   "group": "shape",
+   "unit": "m",
+   "description": "Mean Terrain Ruggedness Index (Riley 1999)."
+  },
+  {
+   "name": "relief_range",
+   "group": "shape",
+   "unit": "m",
+   "description": "Max minus min elevation in the patch."
+  },
+  {
+   "name": "hypsometric_integral",
+   "group": "shape",
+   "unit": "",
+   "description": "(mean - min) / (max - min) elevation; 0..1."
+  },
+  {
+   "name": "elev_skew",
+   "group": "shape",
+   "unit": "",
+   "description": "Skewness of the elevation distribution."
+  }
+ ],
+ "limitations": [
+  "This is similarity of elevation-derived terrain features - not landing-site suitability, mission safety or geological equivalence.",
+  "LOLA 118 m is largely interpolated between altimeter tracks, so Moon slopes/TRI are slightly smoothed versus Earth averaged from real 30 m data; results may favour flat analogs.",
+  "The scaler and the |z| > 3 threshold depend on the hand-picked Earth regions; patches within one region are strongly correlated. The index is not a representative sample of Earth.",
+  "NASADEM is a surface model (includes tree canopy), so the index deliberately relies on desert and volcanic terrain.",
+  "Patches are 10 x 10 km (85 x 85 px). By default at most one patch per region is shown."
+ ]
+}

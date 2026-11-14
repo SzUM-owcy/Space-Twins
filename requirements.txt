@@ -8,4 +8,7 @@ planetary-computer
 requests
 matplotlib
 streamlit
+fastapi
+uvicorn
 pytest
+httpx

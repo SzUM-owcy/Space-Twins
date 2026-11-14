@@ -138,6 +138,16 @@ uv run \
 
 Dependencies are stored in `pyproject.toml` and locked in `uv.lock`.
 
+### Run the HTTP API (backend for the new frontend)
+
+```bash
+uv run uvicorn api.main:app --reload --port 8000
+```
+
+Interactive docs at `http://localhost:8000/docs`. The backend ↔ frontend contract is described in
+[`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) and generated into [`api/openapi.json`](api/openapi.json).
+After changing `api/schemas.py` or the routes, run `uv run python -m api.export_openapi`.
+
 ---------
 
 # 🛰️ Initial Datasets
