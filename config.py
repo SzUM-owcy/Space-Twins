@@ -132,3 +132,47 @@ COMPOSITION_TRIM_PERCENT = 1.0
 COMPOSITION_QI_FLAG_PERCENTILE = 95.0
 COMPOSITION_GRID_STEP_DEG = 5.0
 W_COMPOSITION_DEFAULT = 0.0  # opt-in: experimental, needs the Earth ASTER GED build
+
+# --- Practicality (separate from the scientific analog score) ---
+PRACTICALITY_VERSION = "v0"
+PRACTICALITY_PATH = DATA_DIR / "practicality_earth.csv"
+PRACTICALITY_DIR = DATA_DIR / "practicality"  # gitignored download cache
+# Ascending thresholds: value <= t[i] maps to band i (LOW, MEDIUM, HIGH cost), above the last is VERY HIGH.
+PRACTICALITY_THRESHOLDS = {
+    "city_travel_minutes": (60, 120, 240),
+    "major_road_distance_km": (10, 30, 75),
+    "airport_travel_minutes": (120, 240, 480),
+    "hospital_travel_minutes": (60, 120, 240),
+    "grid_distance_km": (5, 25, 100),
+    "facility_core_slope_p90": (5, 10, 20),
+}
+PRACTICALITY_BAND_SCORES = (100.0, 62.5, 37.5, 12.5)  # centre of each 25-point class
+PRACTICALITY_CLASS_EDGES = (75.0, 50.0, 25.0)  # LOW >= 75, MEDIUM >= 50, HIGH >= 25, else VERY HIGH
+PRACTICALITY_SCORE_WEIGHTS = {
+    "field": {"access": 0.30, "emergency": 0.25, "buildability": 0.20, "infrastructure": 0.10, "population": 0.15},
+    "facility": {"access": 0.15, "emergency": 0.15, "buildability": 0.25, "infrastructure": 0.35, "population": 0.10},
+}
+# Population within 25 km: (upper bound, isolation penalty, impact penalty), both 0-100 (higher = worse).
+PRACTICALITY_POPULATION_BANDS = (
+    (100, 100.0, 0.0),
+    (50_000, 0.0, 10.0),
+    (250_000, 0.0, 50.0),
+    (float("inf"), 0.0, 100.0),
+)
+PRACTICALITY_FLAG_COLUMNS = [
+    "protected_area_status", "world_heritage_status", "community_rights_status", "biodiversity_status",
+    "water_stress_status", "hazard_status", "security_status",
+]
+PRACTICALITY_COLUMNS = [
+    "patch_id",
+    "city_travel_minutes", "airport_travel_minutes", "major_road_distance_km", "access_score",
+    "facility_core_slope_p90", "facility_core_relief_m", "bare_ground_fraction", "buildability_score",
+    "hospital_travel_minutes", "emergency_support_score",
+    "grid_distance_km", "grid_source", "infrastructure_score",
+    "population_10km", "population_25km", "population_50km",
+    "isolation_logistics_penalty", "population_impact_penalty", "population_score",
+    *PRACTICALITY_FLAG_COLUMNS,
+    "field_campaign_score", "facility_score", "field_cost_class", "facility_cost_class",
+    "hard_excluded", "exclusion_reasons",
+    "practicality_completeness", "practicality_confidence", "practicality_version",
+]
