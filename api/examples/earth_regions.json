@@ -1,0 +1,457 @@
+[
+ {
+  "region": "uyuni",
+  "name": "Uyuni",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -67.9,
+   -20.5,
+   -67.1,
+   -19.9
+  ],
+  "patches": 48
+ },
+ {
+  "region": "black_rock",
+  "name": "Black Rock",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -119.5,
+   40.4,
+   -118.5,
+   41.4
+  ],
+  "patches": 88
+ },
+ {
+  "region": "meteor_crater",
+  "name": "Meteor Crater",
+  "dem": "nasadem",
+  "validation": true,
+  "bbox": [
+   -111.5,
+   34.5,
+   -110.5,
+   35.5
+  ],
+  "patches": 99
+ },
+ {
+  "region": "etna",
+  "name": "Etna",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   14.5,
+   37.25,
+   15.5,
+   38.25
+  ],
+  "patches": 56
+ },
+ {
+  "region": "alps",
+  "name": "Alps",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   7.0,
+   45.5,
+   8.0,
+   46.5
+  ],
+  "patches": 77
+ },
+ {
+  "region": "askja",
+  "name": "Askja",
+  "dem": "copdem",
+  "validation": false,
+  "bbox": [
+   -17.3,
+   64.8,
+   -16.3,
+   65.8
+  ],
+  "patches": 44
+ },
+ {
+  "region": "bonneville",
+  "name": "Bonneville",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -114.3,
+   40.3,
+   -113.3,
+   41.3
+  ],
+  "patches": 87
+ },
+ {
+  "region": "mauna_loa",
+  "name": "Mauna Loa",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -155.95,
+   19.1,
+   -155.05,
+   19.75
+  ],
+  "patches": 51
+ },
+ {
+  "region": "mauna_kea",
+  "name": "Mauna Kea",
+  "dem": "nasadem",
+  "validation": true,
+  "bbox": [
+   -155.9,
+   19.75,
+   -155.1,
+   20.2
+  ],
+  "patches": 18
+ },
+ {
+  "region": "craters_of_the_moon",
+  "name": "Craters Of The Moon",
+  "dem": "nasadem",
+  "validation": true,
+  "bbox": [
+   -114.0,
+   43.0,
+   -113.0,
+   44.0
+  ],
+  "patches": 88
+ },
+ {
+  "region": "pinacate",
+  "name": "Pinacate",
+  "dem": "nasadem",
+  "validation": true,
+  "bbox": [
+   -114.0,
+   31.4,
+   -113.0,
+   32.4
+  ],
+  "patches": 91
+ },
+ {
+  "region": "lanzarote",
+  "name": "Lanzarote",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -14.0,
+   28.7,
+   -13.2,
+   29.3
+  ],
+  "patches": 3
+ },
+ {
+  "region": "teide",
+  "name": "Teide",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -17.2,
+   27.9,
+   -16.2,
+   28.6
+  ],
+  "patches": 11
+ },
+ {
+  "region": "reunion",
+  "name": "Reunion",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   55.2,
+   -21.4,
+   55.9,
+   -20.85
+  ],
+  "patches": 17
+ },
+ {
+  "region": "paricutin",
+  "name": "Paricutin",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -102.75,
+   19.0,
+   -101.75,
+   20.0
+  ],
+  "patches": 110
+ },
+ {
+  "region": "klyuchevskoy",
+  "name": "Klyuchevskoy",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   160.1,
+   55.6,
+   161.1,
+   56.6
+  ],
+  "patches": 66
+ },
+ {
+  "region": "aorounga",
+  "name": "Aorounga",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   18.75,
+   18.6,
+   19.75,
+   19.6
+  ],
+  "patches": 110
+ },
+ {
+  "region": "ries",
+  "name": "Ries",
+  "dem": "nasadem",
+  "validation": true,
+  "bbox": [
+   10.0,
+   48.4,
+   11.0,
+   49.4
+  ],
+  "patches": 77
+ },
+ {
+  "region": "cinder_lake",
+  "name": "Cinder Lake",
+  "dem": "nasadem",
+  "validation": true,
+  "bbox": [
+   -112.5,
+   35.0,
+   -111.5,
+   36.0
+  ],
+  "patches": 99
+ },
+ {
+  "region": "erg_chebbi",
+  "name": "Erg Chebbi",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -4.5,
+   30.7,
+   -3.5,
+   31.7
+  ],
+  "patches": 99
+ },
+ {
+  "region": "namib",
+  "name": "Namib",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   14.8,
+   -25.0,
+   15.8,
+   -24.0
+  ],
+  "patches": 109
+ },
+ {
+  "region": "lut",
+  "name": "Lut",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   58.5,
+   30.0,
+   59.5,
+   31.0
+  ],
+  "patches": 99
+ },
+ {
+  "region": "wadi_rum",
+  "name": "Wadi Rum",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   35.0,
+   29.1,
+   36.0,
+   30.1
+  ],
+  "patches": 99
+ },
+ {
+  "region": "gran_desierto",
+  "name": "Gran Desierto",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -115.0,
+   31.6,
+   -114.0,
+   32.6
+  ],
+  "patches": 87
+ },
+ {
+  "region": "tibesti",
+  "name": "Tibesti",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   17.0,
+   20.5,
+   18.0,
+   21.5
+  ],
+  "patches": 110
+ },
+ {
+  "region": "atacama",
+  "name": "Atacama",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -69.0,
+   -24.5,
+   -68.0,
+   -23.5
+  ],
+  "patches": 110
+ },
+ {
+  "region": "tien_shan",
+  "name": "Tien Shan",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   79.5,
+   41.5,
+   80.5,
+   42.5
+  ],
+  "patches": 88
+ },
+ {
+  "region": "colorado_plateau",
+  "name": "Colorado Plateau",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -111.0,
+   36.5,
+   -110.0,
+   37.5
+  ],
+  "patches": 88
+ },
+ {
+  "region": "basin_and_range",
+  "name": "Basin And Range",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -117.0,
+   38.5,
+   -116.0,
+   39.5
+  ],
+  "patches": 88
+ },
+ {
+  "region": "patagonia",
+  "name": "Patagonia",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -72.0,
+   -47.0,
+   -71.0,
+   -46.0
+  ],
+  "patches": 75
+ },
+ {
+  "region": "death_valley",
+  "name": "Death Valley",
+  "dem": "nasadem",
+  "validation": false,
+  "bbox": [
+   -117.5,
+   36.0,
+   -116.5,
+   37.0
+  ],
+  "patches": 88
+ },
+ {
+  "region": "rio_grande_gorge",
+  "name": "Rio Grande Gorge",
+  "dem": "nasadem",
+  "validation": true,
+  "bbox": [
+   -106.2,
+   35.8,
+   -105.2,
+   36.8
+  ],
+  "patches": 88
+ },
+ {
+  "region": "hekla",
+  "name": "Hekla",
+  "dem": "copdem",
+  "validation": false,
+  "bbox": [
+   -20.7,
+   63.6,
+   -18.7,
+   64.6
+  ],
+  "patches": 96
+ },
+ {
+  "region": "odadahraun",
+  "name": "Odadahraun",
+  "dem": "copdem",
+  "validation": false,
+  "bbox": [
+   -16.3,
+   65.0,
+   -14.3,
+   66.0
+  ],
+  "patches": 91
+ },
+ {
+  "region": "haughton",
+  "name": "Haughton",
+  "dem": "copdem",
+  "validation": true,
+  "bbox": [
+   -92.0,
+   75.0,
+   -88.0,
+   75.8
+  ],
+  "patches": 69
+ }
+]
