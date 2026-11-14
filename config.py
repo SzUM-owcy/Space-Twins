@@ -105,8 +105,19 @@ COMPOSITION_MOON_COLUMNS = [
     "composition_confidence", "composition_status", "composition_dataset", "composition_reference_version",
 ]
 COMPOSITION_DIR = DATA_DIR / "composition"
-COMPOSITION_CF_PATH = COMPOSITION_DIR / "DIVGLOB1701_CX3.tiff"
-COMPOSITION_CF_URL = "https://zenodo.org/records/4558235/files/DIVGLOB1701_CX3.tiff?download=1"
+COMPOSITION_CF_PATH = COMPOSITION_DIR / "diviner_CF_space_weathering_corrected.tiff"
+COMPOSITION_CF_URL = "https://zenodo.org/api/records/4558194/files/diviner_CF_space_weathering_corrected.tiff/content"
+COMPOSITION_CF_RAW_PATH = COMPOSITION_DIR / "DIVGLOB1701_CX3.tiff"  # previous viewing-geometry-only map, kept for comparison
+COMPOSITION_CF_RAW_URL = "https://zenodo.org/records/4558235/files/DIVGLOB1701_CX3.tiff?download=1"
+COMPOSITION_MINERAL_MAPS = {  # Diviner mineral-abundance rasters, same grid as the CF map (Zenodo record 4558194)
+    "plagioclase": "diviner_MI_plagioclase.tiff",
+    "pyroxene": "diviner_MI_pyroxene.tiff",
+    "olivine": "diviner_MI_olivine.tiff",
+}
+COMPOSITION_MINERAL_URL = "https://zenodo.org/api/records/4558194/files/{name}/content"
+COMPOSITION_EARTH_LITHOLOGY_PATH = DATA_DIR / "composition_earth_lithology.csv"
+COMPOSITION_MOON_MINERALS_PATH = DATA_DIR / "composition_moon_minerals.csv"
+COMPOSITION_MOON_RAW_COMPARISON_PATH = DATA_DIR / "composition_moon_cf_comparison.csv"
 COMPOSITION_CF_PPD = 32  # pixels per degree; the file has no georeferencing: lat +70 (top) .. -70, lon -180 .. 180
 COMPOSITION_CF_MAX_ABS_LAT = 70.0
 ASTER_GED_DIR = DATA_DIR / "aster_ged"

@@ -1,6 +1,6 @@
 """Moon: Diviner Christiansen Feature (CF) wavelength for a 10 x 10 km patch.
 
-The global CF map (Zenodo record 4558235, viewing-geometry corrected, 32 pixels/degree, +-70 deg latitude)
+The global CF map (Zenodo record 4558194, corrected for viewing geometry and space weathering, 32 pixels/degree, +-70 deg latitude)
 is an un-georeferenced GeoTIFF: row 0 is +70 deg, column 0 is -180 deg, longitude east positive.
 Higher CF wavelength means a relatively more mafic surface, lower means more felsic / anorthositic.
 """
@@ -36,13 +36,13 @@ log = logging.getLogger(__name__)
 KM_PER_DEG = np.pi * MOON_RADIUS_M / 180.0 / 1000.0
 
 
-def ensure_cf_map(path: Path = COMPOSITION_CF_PATH) -> Path:
-    """Download the CF GeoTIFF (206 MB, no login) when it is not on disk."""
+def ensure_cf_map(path: Path = COMPOSITION_CF_PATH, url: str = COMPOSITION_CF_URL) -> Path:
+    """Download a Diviner GeoTIFF (206 MB, no login) when it is not on disk."""
     if path.exists():
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".part")
-    with requests.get(COMPOSITION_CF_URL, stream=True, timeout=120) as resp:
+    with requests.get(url, stream=True, timeout=120) as resp:
         resp.raise_for_status()
         with open(tmp, "wb") as fh:
             for chunk in resp.iter_content(1 << 20):
@@ -95,3 +95,14 @@ def moon_composition_live(lat: float, lon: float) -> dict:
     if stats["composition_status"] == STATUS_OK and COMPOSITION_MOON_REFERENCE_PATH.exists():
         pct = float(mafic_felsic_percentile(stats["diviner_cf_microns"], load_composition_reference(COMPOSITION_MOON_REFERENCE_PATH)))
     return {**stats, "mafic_felsic_percentile": pct}
+
+
+def moon_raster_median(lat: float, lon: float, src: rasterio.DatasetReader) -> float:
+    """Median valid value of any same-grid Diviner raster over the patch; NaN beyond +-70 deg or without valid pixels."""
+    if abs(lat) > COMPOSITION_CF_MAX_ABS_LAT:
+        return float("nan")
+    block = cf_patch_window(src, lat, lon).astype("float64")
+    if src.nodata is not None:
+        block[block == src.nodata] = np.nan
+    block = block[np.isfinite(block)]
+    return float(np.median(block)) if block.size else float("nan")

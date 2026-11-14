@@ -98,7 +98,8 @@ and are not proof of environmental equivalence. See the limitations below.
 | **Thermal range** | Earth | [MODIS MOD11A2/MYD11A2 v061](https://lpdaac.usgs.gov/products/mod11a2v061/) land surface temperature (Terra + Aqua, 1 km, 8-day composites, day and night layers + QA flags), read as COGs from the [Planetary Computer](https://planetarycomputer.microsoft.com/dataset/modis-11A2-061); year 2024 | The day–night swing per 8-day period (max − min of up to 4 overpass samples), median over the year |
 | | Moon | [LRO Diviner](https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/) Global Cumulative Product, `tbol` bolometric temperature (0.5° cells, 96 local-time bins, 2009–2015 average); the 4 south-polar sites use the [Polar Cumulative Product](https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_pcp/) (240 m, 0.25 h bins, summer and winter, streamed with HTTP range requests) | The hot-vs-cold swing across the lunar day |
 | **Composition** | Earth | [ASTER Global Emissivity Dataset AG100.003](https://lpdaac.usgs.gov/products/ag100v003/) (100 m, 2000–2008 clear-sky; bands 10–14, NDVI, land/water map, observation count; **needs a free NASA Earthdata login**) | Mafic Index `e12 / e13` (Quartz Index `e11² / (e10·e12)` only as a confounder flag), patch median over bare land pixels |
-| | Moon | [Diviner Christiansen Feature map `DIVGLOB1701_CX3`](https://zenodo.org/records/4558235) (Lucey et al. 2021; 32 pixels/degree, ±70° latitude, 206 MB, no login) | CF wavelength: higher = more mafic, lower = more felsic / anorthositic |
+| | Moon | [Diviner Christiansen Feature map, viewing- and space-weathering-corrected](https://zenodo.org/records/4558194) (Lucey et al. 2021; 32 pixels/degree, ±70° latitude, no login); the older `DIVGLOB1701_CX3` map is kept only for a comparison table | CF wavelength: higher = more mafic, lower = more felsic / anorthositic. The same record's Diviner plagioclase / pyroxene / olivine rasters give diagnostic fractions |
+| | Earth (fallback) | [Macrostrat](https://macrostrat.org/api) geologic-unit API (public, CC-BY 4.0, no login), 3×3 sample points per patch | Categorical lithology and confounder fractions (explanation only, never turned into the percentile) |
 | **Solar illumination** | Earth | NASADEM / Copernicus DEM (terrain horizon, as above) + [pvlib](https://pvlib-python.readthedocs.io/) solar position (NREL SPA), hourly 2024 | Share of time the Sun is above the terrain horizon |
 | | Moon | LOLA 118 m DEM (terrain horizon, 40 km window) + [NASA/JPL SPICE](https://naif.jpl.nasa.gov/naif/) ephemerides (`de440s.bsp`, `pck00011.tpc`, `naif0012.tls`), same hourly grid | Share of time the Sun is above the terrain horizon |
 
@@ -206,6 +207,8 @@ uv run --frozen python 1c_build_thermal.py moon-polar
 
 # Composition side tables (Moon: CF map downloaded from Zenodo; Earth: needs ~/.netrc Earthdata login or .h5 tiles in data/aster_ged/)
 uv run --frozen python 1e_build_composition.py moon
+uv run --frozen python 1e_build_composition.py minerals        # Moon mineral fractions + raw-vs-corrected CF comparison
+uv run --frozen python 1e_build_composition.py lithology       # Earth Macrostrat lithology (no login, resumable)
 uv run --frozen python 1e_build_composition.py earth
 uv run --frozen python 1e_build_composition.py validate        # outputs/composition_validation.{csv,png}
 uv run --frozen python 1e_build_composition.py finalize        # versioned references + percentiles
@@ -385,9 +388,14 @@ breaks down), not as a single "Moon-likeness" score.
 - **Composition:** a body-relative thermal-infrared proxy (ASTER emissivity ratio vs Diviner Christiansen
   Feature), not identical minerals or chemistry. Quartz, gypsum, salt and carbonate surfaces can look extreme on
   Earth (quartz-rich patches get `low_quartz_confounder` confidence), and the Moon's polar sites (beyond ±70°)
-  have no value (`outside_diviner_cf_coverage`); the component then drops out. The Moon side is built and
-  checked (all 6 mare sites have a higher CF than all 3 highland sites); the Earth side needs a free Earthdata
-  login for ASTER GED and is not built yet, so `w_composition > 0` currently reports `missing` for every Earth patch.
+  have no value (`outside_diviner_cf_coverage`); the component then drops out. The Moon side is built on the
+  space-weathering-corrected CF map and checked (mare sites have a higher CF than highland sites); the Earth side
+  needs a free Earthdata login for ASTER GED (the AWS listing is also login-controlled) and is not built yet, so
+  `w_composition > 0` currently reports `missing` for every Earth patch.
+  The diagnostic side tables `composition_moon_minerals.csv` (plagioclase / pyroxene / olivine fractions),
+  `composition_moon_cf_comparison.csv` and `composition_earth_lithology.csv` (Macrostrat) are explanatory only and
+  do not enter scoring. The lithology table is partial: 4000 of 5009 Earth patches, and only about half of those
+  have a mapped unit (the rest are `unknown`); it is not a mineralogy.
 - **Illumination:** geometric Sun visibility only (no atmosphere, clouds or insolation). On Earth the 20 km
   window (limited by the regional DEM mosaics) truncates horizons near region edges; the Moon uses 40 km, which
   the polar validation showed is needed for large craters. Polar sites use the 118 m global LOLA product, which
@@ -403,7 +411,7 @@ Working end to end: Earth index (73 regions) and Moon index (18 sites) → scori
 top-K analogs → CLI and HTTP API. The Streamlit app (`app.py`) currently runs terrain-only scoring and has no
 controls for the thermal, illumination, composition or per-feature weights yet.
 
-Next: build the Earth composition table (`1e_build_composition.py earth`, needs an Earthdata login) and run its
+Next: finish the Earth lithology table (remaining patches), build the Earth composition table (`1e_build_composition.py earth`, needs an Earthdata login) and run its
 validation, validate thermal and Earth illumination against independent sources, a Moon patch-scale
 temperature source for non-polar sites (Diviner RDR binning), more Earth regions, ice/resource indicators and Mars
 as a second target body.
