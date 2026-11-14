@@ -27,6 +27,7 @@ from config import (
     ILLUM_EARTH_PATH,
     ILLUM_END,
     ILLUM_HORIZON_RADIUS_M,
+    ILLUM_HORIZON_RADIUS_MOON_M,
     ILLUM_MOON_PATH,
     ILLUM_START,
     LOLA_GLOBAL_PATH,
@@ -35,12 +36,18 @@ from config import (
     NASADEM_DIR,
     NASADEM_NODATA,
 )
-from src.illumination import dem_window, extract_solar_visibility_fraction, horizon_profile
+from src.illumination import (
+    dem_window,
+    extract_solar_visibility_fraction,
+    horizon_profile,
+    observer_latlon,
+    observer_points,
+)
 
 log = logging.getLogger("illumination")
 PERIOD = f"{ILLUM_START}/{ILLUM_END} hourly"
 EARTH_DATASET = "NASADEM/COPDEM horizon (20 km window, 250 m) + pvlib NREL SPA"
-MOON_DATASET = "LOLA 118 m horizon (20 km window, 250 m) + SPICE DE440s/IAU_MOON"
+MOON_DATASET = "LOLA 118 m horizon (40 km window, 250 m) + SPICE DE440s/IAU_MOON"
 MOON_INDEX_PATH = DATA_DIR / "moon_index.csv"
 DEM_INFO = {
     "nasadem": (NASADEM_DIR, NASADEM_NODATA),
@@ -55,17 +62,25 @@ def _src(path):
     return _open[path]
 
 
-def _row(patch_id: str, lat: float, lon: float, body: str, path, nodata, scale, sun_position) -> dict:
+def _row(
+    patch_id: str, lat: float, lon: float, body: str, path, nodata, scale, sun_position,
+    radius_m: float = ILLUM_HORIZON_RADIUS_M, per_point_sun: bool = False,
+) -> dict:
     row = {
         "patch_id": patch_id, "solar_visibility_fraction": np.nan, "solar_visibility_astro": np.nan,
         "solar_visibility_terrain": np.nan, "illumination_points": 0,
-        "illumination_horizon_km": ILLUM_HORIZON_RADIUS_M / 1000,
+        "illumination_horizon_km": radius_m / 1000,
     }
-    z = dem_window(_src(path), lat, lon, body, nodata, scale)
+    z = dem_window(_src(path), lat, lon, body, nodata, scale, radius_m=radius_m)
     if z is None:
         return row
-    elev, azim = sun_position(lat, lon)
-    res = extract_solar_visibility_fraction(elev, azim, horizon_profile(z, body))
+    points = observer_points()
+    if per_point_sun:  # the Sun track of every observer point (the local azimuth changes fast near the poles)
+        tracks = [sun_position(la, lo) for la, lo in zip(*observer_latlon(lat, lon, body, points))]
+        elev, azim = np.array([t[0] for t in tracks]), np.array([t[1] for t in tracks])
+    else:
+        elev, azim = sun_position(lat, lon)
+    res = extract_solar_visibility_fraction(elev, azim, horizon_profile(z, body, points))
     row.update(
         solar_visibility_fraction=res["fraction"], solar_visibility_astro=res["astro"],
         solar_visibility_terrain=res["terrain"], illumination_points=res["points"],
@@ -118,7 +133,12 @@ def build_moon() -> None:
     idx = pd.read_csv(MOON_INDEX_PATH)
     rows = []
     for pid, lat, lon in zip(idx["patch_id"], idx["center_lat"], idx["center_lon"]):
-        rows.append(_row(pid, lat, lon, "moon", LOLA_GLOBAL_PATH, LOLA_NODATA, LOLA_SCALE, sun_position))
+        rows.append(
+            _row(
+                pid, lat, lon, "moon", LOLA_GLOBAL_PATH, LOLA_NODATA, LOLA_SCALE, sun_position,
+                radius_m=ILLUM_HORIZON_RADIUS_MOON_M, per_point_sun=True,
+            )
+        )
         log.info("%s: %.3f", pid, rows[-1]["solar_visibility_fraction"])
     df = pd.DataFrame(rows)
     df["illumination_dataset"] = MOON_DATASET
