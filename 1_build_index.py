@@ -88,6 +88,19 @@ REGIONS = [
     Region("hekla", "copdem", (-20.7, 63.6, -18.7, 64.6)),
     Region("odadahraun", "copdem", (-16.3, 65.0, -14.3, 66.0)),
     Region("haughton", "copdem", (-92.0, 75.0, -88.0, 75.8), validation=True),
+    # phase 4: rough / steep terrain, impact structures, polar, basalt
+    Region("hoggar", "nasadem", (5.0, 22.8, 6.0, 23.8)),
+    Region("danakil", "nasadem", (40.2, 13.1, 41.2, 14.1)),
+    Region("zagros", "nasadem", (50.3, 31.5, 51.3, 32.5)),
+    Region("ladakh", "nasadem", (77.5, 33.8, 78.5, 34.8)),
+    Region("puna", "nasadem", (-68.0, -27.0, -67.0, -26.0)),
+    Region("high_atlas", "nasadem", (-6.0, 31.2, -5.0, 32.2)),
+    Region("khaybar", "nasadem", (39.4, 25.2, 40.4, 26.2)),  # harrat basalt field
+    Region("gosses_bluff", "nasadem", (131.8, -24.4, 132.8, -23.4)),
+    Region("wolfe_creek", "nasadem", (127.3, -19.7, 128.3, -18.7)),
+    Region("vredefort", "nasadem", (27.0, -27.5, 28.0, -26.5)),
+    Region("richat", "nasadem", (-11.9, 20.6, -10.9, 21.6)),
+    Region("dry_valleys", "copdem", (160.5, -77.7, 162.5, -77.3)),  # Antarctica, ice-free valleys
 ]
 
 
