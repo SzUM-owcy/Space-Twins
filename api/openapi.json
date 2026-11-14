@@ -4,6 +4,71 @@
       "Analog": {
         "additionalProperties": false,
         "properties": {
+          "composition_confidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "high / medium / low / low_quartz_confounder (pewność proxy składu patch'a Ziemi).",
+            "title": "Composition Confidence"
+          },
+          "composition_distance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Distance"
+          },
+          "composition_quality": {
+            "anyOf": [
+              {
+                "enum": [
+                  "good",
+                  "moderate",
+                  "poor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Quality"
+          },
+          "composition_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Status"
+          },
+          "earth_mafic_felsic_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earth Mafic Felsic Percentile"
+          },
           "features": {
             "additionalProperties": {
               "type": "number"
@@ -21,6 +86,22 @@
               }
             ],
             "title": "Illumination Distance"
+          },
+          "illumination_quality": {
+            "anyOf": [
+              {
+                "enum": [
+                  "good",
+                  "moderate",
+                  "poor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Illumination Quality"
           },
           "illumination_status": {
             "anyOf": [
@@ -77,6 +158,18 @@
             "title": "Source",
             "type": "string"
           },
+          "stability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek przebiegów z szumem (stability_runs), w których łatka zostaje w top-K; null = nie liczone.",
+            "title": "Stability"
+          },
           "terrain_distance": {
             "anyOf": [
               {
@@ -89,6 +182,23 @@
             "description": "Tylko teren; ustawione, gdy w_thermal lub w_illum > 0.",
             "title": "Terrain Distance"
           },
+          "terrain_quality": {
+            "anyOf": [
+              {
+                "enum": [
+                  "good",
+                  "moderate",
+                  "poor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etykieta składnika (odległość < 0.5 good, < 1.0 moderate, dalej poor); ustawiona razem z terrain_distance.",
+            "title": "Terrain Quality"
+          },
           "thermal_distance": {
             "anyOf": [
               {
@@ -99,6 +209,22 @@
               }
             ],
             "title": "Thermal Distance"
+          },
+          "thermal_quality": {
+            "anyOf": [
+              {
+                "enum": [
+                  "good",
+                  "moderate",
+                  "poor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thermal Quality"
           },
           "thermal_status": {
             "anyOf": [
@@ -187,12 +313,28 @@
           "moon": {
             "$ref": "#/components/schemas/MoonQuery"
           },
+          "stability_runs": {
+            "default": 0,
+            "description": "Liczba przebiegów z szumem na cechach Księżyca (0 = wyłączone); wypełnia Analog.stability.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Stability Runs",
+            "type": "integer"
+          },
           "top_k": {
             "default": 5,
             "maximum": 50.0,
             "minimum": 1.0,
             "title": "Top K",
             "type": "integer"
+          },
+          "w_composition": {
+            "default": 0.0,
+            "description": "Waga składu mafic-felsic (proxy IR; percentyl w obrębie ciała); 0 = wyłączony. w_thermal + w_illum + w_composition <= 1.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "W Composition",
+            "type": "number"
           },
           "w_illum": {
             "default": 0.0,
@@ -274,6 +416,11 @@
           "top_k": {
             "title": "Top K",
             "type": "integer"
+          },
+          "w_composition": {
+            "default": 0.0,
+            "title": "W Composition",
+            "type": "number"
           },
           "w_illum": {
             "default": 0.0,
@@ -621,6 +768,18 @@
       "MoonSummary": {
         "additionalProperties": false,
         "properties": {
+          "composition_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ok / outside_diviner_cf_coverage / missing; null = nie liczone.",
+            "title": "Composition Status"
+          },
           "features": {
             "additionalProperties": {
               "type": "number"
@@ -636,6 +795,18 @@
           "lon": {
             "title": "Lon",
             "type": "number"
+          },
+          "mafic_felsic_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Percentyl składu mafic-felsic (0 = felsic, 1 = mafic) względem Księżyca albo null (np. bieguny).",
+            "title": "Mafic Felsic Percentile"
           },
           "name": {
             "title": "Name",

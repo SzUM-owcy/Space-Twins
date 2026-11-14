@@ -19,7 +19,7 @@ from config import (
 )
 from src.morphometry import extract_patch_features
 from src.raster_io import extract_patch
-from src.scoring import distances, fit_scaler, transform
+from src.scoring import LOG1P_FEATURES, distances, fit_scaler, transform
 
 # Produkt globalny LOLA 118 m: |lat| <= 75°; polarny: lat <= -80°. Pas 75-80° pomijamy (CONTRACT §2).
 GLOBAL_MAX_ABS_LAT = 75.0
@@ -108,9 +108,24 @@ def moon_features_for(
 
 THERMAL_RESULT_COLUMNS = ["terrain_distance", "thermal_distance", "thermal_status"]
 ILLUM_RESULT_COLUMNS = ["illumination_distance", "illumination_status"]
+COMPOSITION_RESULT_COLUMNS = ["composition_distance", "composition_status", "composition_confidence", "earth_mafic_felsic_percentile"]
+QUALITY_COLUMNS = ["terrain_quality", "thermal_quality", "illumination_quality", "composition_quality"]
+# Etykieta składnika wg odległości (skala z-score): < 0.5 dobre, < 1.0 umiarkowane, dalej słabe.
+QUALITY_GOOD_MAX, QUALITY_MODERATE_MAX = 0.5, 1.0
+STABILITY_SIGMA = 0.3  # odch. std szumu dodawanego do z-score cech Księżyca
+
+
+def quality_label(distance: float | None) -> str | None:
+    """"good" / "moderate" / "poor" dla odległości składnika; None, gdy brak danych."""
+    if distance is None or not np.isfinite(distance):
+        return None
+    if distance < QUALITY_GOOD_MAX:
+        return "good"
+    return "moderate" if distance < QUALITY_MODERATE_MAX else "poor"
 # E|d|^2 of two independent uniform percentiles is 1/6, so sqrt(6) puts |dp| on a z-score-like scale.
 THERMAL_DISTANCE_SCALE = float(np.sqrt(6.0))
 ILLUM_VALUE_COLUMN = "solar_visibility_fraction"
+COMPOSITION_VALUE_COLUMN = "mafic_felsic_percentile"
 
 
 def _component_distance(
@@ -131,14 +146,18 @@ def _add_components(
     moon_illumination: float | None = None,
     earth_illumination: pd.DataFrame | None = None,
     w_illum: float = 0.0,
+    moon_composition: float | None = None,
+    earth_composition: pd.DataFrame | None = None,
+    w_composition: float = 0.0,
 ) -> pd.DataFrame:
     """Dodaj składniki termiczny i oświetleniowy; połącz z terenowym i sortuj po nowej sumie.
 
     Brakujący składnik wypada z sumy (jego waga wraca do pozostałych), nigdy nie jest zerem.
     """
     ranked = ranked.rename(columns={"total_distance": "terrain_distance"})
-    num = (1.0 - w_thermal - w_illum) * ranked["terrain_distance"]
-    den = pd.Series(1.0 - w_thermal - w_illum, index=ranked.index)
+    terrain_weight = 1.0 - w_thermal - w_illum - w_composition
+    num = terrain_weight * ranked["terrain_distance"]
+    den = pd.Series(terrain_weight, index=ranked.index)
 
     def add(name: str, weight: float, dist: pd.Series) -> None:
         nonlocal num, den
@@ -159,6 +178,21 @@ def _add_components(
             scale = 1.0 / std if np.isfinite(std) and std > 0 else 1.0
         dist = _component_distance(ranked, moon_illumination, lookup, scale)
         add("illumination", w_illum, dist.clip(upper=OUT_OF_RANGE_Z))
+    if w_composition > 0.0:
+        lookup, scale = None, 1.0
+        if earth_composition is not None:
+            valid = earth_composition[earth_composition["composition_status"] == "ok"]
+            lookup = earth_composition.set_index("patch_id")[COMPOSITION_VALUE_COLUMN].where(
+                earth_composition.set_index("patch_id")["composition_status"] == "ok"
+            )
+            std = float(valid[COMPOSITION_VALUE_COLUMN].std())
+            scale = 1.0 / std if np.isfinite(std) and std > 0 else 1.0
+        dist = _component_distance(ranked, moon_composition, lookup, scale).clip(upper=OUT_OF_RANGE_Z)
+        add("composition", w_composition, dist)
+        if earth_composition is not None:
+            by_id = earth_composition.set_index("patch_id")
+            ranked["earth_mafic_felsic_percentile"] = ranked["patch_id"].map(lookup)
+            ranked["composition_confidence"] = ranked["patch_id"].map(by_id["composition_confidence"]).where(dist.notna())
     ranked["total_distance"] = np.where(den > 1e-12, num / den.where(den > 1e-12, 1.0), ranked["terrain_distance"])
     return ranked.sort_values("total_distance", kind="stable")
 
@@ -176,6 +210,9 @@ def find_analogs(
     earth_illumination: pd.DataFrame | None = None,
     w_illum: float = 0.0,
     feature_weights: Mapping[str, float] | None = None,
+    moon_composition: float | None = None,
+    earth_composition: pd.DataFrame | None = None,
+    w_composition: float = 0.0,
 ) -> pd.DataFrame:
     """Najbardziej podobne łatki Ziemi do łatki Księżyca (mniejsza odległość = większe podobieństwo).
 
@@ -189,14 +226,19 @@ def find_analogs(
     Analogicznie oświetlenie (``w_illum`` > 0): ``earth_illumination`` ma kolumny ``patch_id`` i
     ``solar_visibility_fraction``; odległość = |różnica| / std Ziemi (obcięta do 3). Waga terenu
     to ``1 - w_thermal - w_illum``. ``feature_weights``: względne ważności 12 cech terenu
-    (patrz ``scoring.distances``); zastępuje podział ``w_slope``.
+    (patrz ``scoring.distances``); zastępuje podział ``w_slope``. Skład (``w_composition`` > 0):
+    ``earth_composition`` ma kolumny ``patch_id``, ``mafic_felsic_percentile``, ``composition_status``,
+    ``composition_confidence``; odległość = |różnica percentyli| / std Ziemi (obcięta do 3); brak danych
+    (np. bieguny Księżyca) = składnik wypada z sumy.
     """
     if not 0.0 <= w_thermal <= 1.0:
         raise ValueError(f"w_thermal musi być w [0, 1], jest {w_thermal}")
     if not 0.0 <= w_illum <= 1.0:
         raise ValueError(f"w_illum musi być w [0, 1], jest {w_illum}")
-    if w_thermal + w_illum > 1.0 + 1e-9:
-        raise ValueError(f"w_thermal + w_illum musi być <= 1, jest {w_thermal + w_illum}")
+    if not 0.0 <= w_composition <= 1.0:
+        raise ValueError(f"w_composition musi być w [0, 1], jest {w_composition}")
+    if w_thermal + w_illum + w_composition > 1.0 + 1e-9:
+        raise ValueError(f"w_thermal + w_illum + w_composition musi być <= 1, jest {w_thermal + w_illum + w_composition}")
     if top_k < 1:
         raise ValueError(f"top_k musi być >= 1, jest {top_k}")
     if max_per_region is not None and max_per_region < 1:
@@ -211,17 +253,21 @@ def find_analogs(
         [earth_index[["patch_id", "region", "center_lat", "center_lon"]], dist], axis=1
     ).sort_values("total_distance", kind="stable")
 
-    if w_thermal > 0.0 or w_illum > 0.0:
+    if w_thermal > 0.0 or w_illum > 0.0 or w_composition > 0.0:
         ranked = _add_components(
             ranked, moon_thermal_percentile, earth_thermal, w_thermal,
             moon_illumination, earth_illumination, w_illum,
+            moon_composition, earth_composition, w_composition,
         )
 
     if max_per_region is not None:
         ranked = ranked.groupby("region", sort=False).head(max_per_region)
     result = ranked.head(top_k).reset_index(drop=True)
     result.insert(0, "rank", range(1, len(result) + 1))
-    extra = THERMAL_RESULT_COLUMNS + ILLUM_RESULT_COLUMNS
+    for name in ("terrain", "thermal", "illumination", "composition"):
+        if f"{name}_distance" in result.columns:
+            result[f"{name}_quality"] = result[f"{name}_distance"].map(quality_label)
+    extra = THERMAL_RESULT_COLUMNS + ILLUM_RESULT_COLUMNS + COMPOSITION_RESULT_COLUMNS + QUALITY_COLUMNS
     result = result[RESULT_COLUMNS + [c for c in extra if c in result.columns]]
 
     z_moon = transform(moon_features, scaler)[0]
@@ -229,3 +275,37 @@ def find_analogs(
         name for name, z in zip(FEATURE_NAMES, z_moon) if abs(z) > OUT_OF_RANGE_Z
     ]
     return result
+
+
+def rank_stability(
+    moon_features: Mapping[str, float],
+    earth_index: pd.DataFrame,
+    result: pd.DataFrame,
+    runs: int = 20,
+    sigma: float = STABILITY_SIGMA,
+    seed: int = 0,
+    **find_kwargs,
+) -> pd.Series:
+    """Ułamek przebiegów z szumem na z-score cech Księżyca, w których region łatki zostaje w top-K
+    (inna łatka tego samego regionu też się liczy, bo ranking bierze jedną łatkę na region).
+
+    ``find_kwargs`` te same co dla ``find_analogs`` (wagi, termika, oświetlenie); wynik
+    indeksowany ``patch_id``. Blisko 1 = stabilna pozycja, blisko 0 = prawie remis.
+    """
+    if runs < 1:
+        raise ValueError(f"runs musi być >= 1, jest {runs}")
+    scaler = fit_scaler(earth_index)
+    z_moon = transform(moon_features, scaler)[0]
+    rng = np.random.default_rng(seed)
+    hits = pd.Series(0, index=result["patch_id"], dtype=float)
+    top_k = len(result)
+    for _ in range(runs):
+        logged = (z_moon + rng.normal(0.0, sigma, z_moon.shape)) * scaler.std + scaler.mean
+        raw = np.array(logged)
+        for name in LOG1P_FEATURES:
+            i = FEATURE_NAMES.index(name)
+            raw[i] = np.expm1(raw[i])
+        noisy = dict(zip(FEATURE_NAMES, raw))
+        top = find_analogs(noisy, earth_index, top_k=top_k, **find_kwargs)
+        hits[result["region"].isin(top["region"]).to_numpy()] += 1
+    return hits / runs
