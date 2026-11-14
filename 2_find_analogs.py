@@ -16,7 +16,6 @@ from config import DATA_DIR, OUTPUT_DIR
 from src.morphometry import FEATURE_NAMES
 from src.query import find_analogs, moon_features_for
 
-LOLA_PATH = DATA_DIR / "lola" / "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
 EARTH_INDEX = DATA_DIR / "earth_index.csv"
 MOON_INDEX = DATA_DIR / "moon_index.csv"
 OUTPUT_PATH = OUTPUT_DIR / "latest_query.json"
@@ -57,7 +56,7 @@ def moon_patch_record(args: argparse.Namespace) -> dict:
         "patch_id": f"moon_custom_{args.lat:.4f}_{args.lon:.4f}",
         "center_lat": args.lat,
         "center_lon": args.lon,
-        "features": moon_features_for(args.lat, args.lon, LOLA_PATH),
+        "features": moon_features_for(args.lat, args.lon),
     }
 
 

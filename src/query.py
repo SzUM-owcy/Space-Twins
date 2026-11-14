@@ -9,14 +9,19 @@ import numpy as np
 import pandas as pd
 import rasterio
 
-from config import LOLA_NODATA, LOLA_SCALE, PIXEL_SIZE_M
+from config import DATA_DIR, LOLA_NODATA, LOLA_SCALE, PIXEL_SIZE_M
 from src.morphometry import FEATURE_NAMES, extract_patch_features
 from src.raster_io import extract_patch
 from src.scoring import distances, fit_scaler, transform
 
-# Produkt globalny LOLA 118 m pokrywa |lat| <= 75°; pas 75-80° pomijamy (CONTRACT §2).
-# Produkt polarny (lat <= -80°) jeszcze nie jest podłączony.
+# Tymczasowo tutaj; po uzgodnieniu z A przenieść do config.py (CONTRACT §6).
+LOLA_GLOBAL_PATH = DATA_DIR / "lola" / "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
+# Produkt polarny PDS3 (stereografia polarna, 20 m/px, 80-90°S); otwieramy przez etykietę .lbl.
+LOLA_POLAR_PATH = DATA_DIR / "lola" / "ldem_80s_20m.lbl"
+
+# Produkt globalny LOLA 118 m: |lat| <= 75°; polarny: lat <= -80°. Pas 75-80° pomijamy (CONTRACT §2).
 GLOBAL_MAX_ABS_LAT = 75.0
+POLAR_MAX_LAT = -80.0
 # Sanity check wysokości LOLA po zastosowaniu skali (CONTRACT §2 pkt 8).
 LOLA_MIN_M, LOLA_MAX_M = -9150.0, 10800.0
 
@@ -34,24 +39,15 @@ OUT_OF_RANGE_Z = 3.0
 
 
 class PatchRejected(ValueError):
-    """Łatki nie da się wyciąć: szerokość poza produktem, nodata albo poza rastrem."""
+    """Łatki nie da się wyciąć: szerokość poza produktami, nodata albo poza rastrem."""
 
 
 def extract_moon_patch(src: rasterio.DatasetReader, lat: float, lon: float) -> np.ndarray:
-    """Łatka 85x85 (metry, float64, północ u góry) z otwartego globalnego rastra LOLA.
+    """Łatka 85x85 (metry, float64, północ u góry) z otwartego rastra LOLA (globalnego lub polarnego).
 
-    ``PatchRejected`` dla szerokości poza zakresem produktu albo odrzuconej łatki;
-    zwykły ``ValueError``, gdy wysokości wychodzą poza zakres LOLA (zła skala rastra).
+    ``PatchRejected`` dla odrzuconej łatki (nodata albo poza rastrem); zwykły
+    ``ValueError``, gdy wysokości wychodzą poza zakres LOLA (zła skala rastra).
     """
-    if not (-90.0 <= lat <= 90.0) or not np.isfinite(lat) or not np.isfinite(lon):
-        raise PatchRejected(f"niepoprawne współrzędne: lat={lat}, lon={lon}")
-    if abs(lat) > GLOBAL_MAX_ABS_LAT:
-        raise PatchRejected(
-            f"lat={lat}: produkt globalny 118 m pokrywa tylko |lat| <= {GLOBAL_MAX_ABS_LAT:g}° "
-            "(pas 75-80° nie jest obsługiwany, a produkt polarny nie jest jeszcze podłączony)"
-        )
-    lon = (lon + 180.0) % 360.0 - 180.0
-
     patch = extract_patch(src, lat, lon, body="moon", nodata=LOLA_NODATA, scale=LOLA_SCALE)
     if patch is None:
         raise PatchRejected(f"({lat}, {lon}): łatka odrzucona (nodata albo poza rastrem)")
@@ -64,15 +60,48 @@ def extract_moon_patch(src: rasterio.DatasetReader, lat: float, lon: float) -> n
     return patch
 
 
-def moon_features_for(lat: float, lon: float, lola_path: str | Path) -> dict[str, float]:
-    """12 cech łatki 10x10 km wyciętej na żywo z globalnego rastra LOLA (np. dla UI).
+def moon_patch_for(
+    lat: float,
+    lon: float,
+    lola_path: str | Path = LOLA_GLOBAL_PATH,
+    polar_path: str | Path | None = LOLA_POLAR_PATH,
+) -> np.ndarray:
+    """Łatka 10x10 km dla (lat, lon); produkt wybierany wg szerokości.
 
-    Rzuca ``PatchRejected`` (podklasa ``ValueError``) dla pasa 75-80°, biegunów
+    |lat| <= 75° -> ``lola_path`` (globalny 118 m), lat <= -80° -> ``polar_path`` (20 m, południe).
+    ``PatchRejected`` dla pasa 75-80°, północy powyżej 75° i łatek odrzuconych.
+    """
+    if not np.isfinite(lat) or not np.isfinite(lon) or not -90.0 <= lat <= 90.0:
+        raise PatchRejected(f"niepoprawne współrzędne: lat={lat}, lon={lon}")
+    lon = (lon + 180.0) % 360.0 - 180.0
+
+    if abs(lat) <= GLOBAL_MAX_ABS_LAT:
+        path = lola_path
+    elif lat <= POLAR_MAX_LAT:
+        if polar_path is None:
+            raise PatchRejected(f"lat={lat}: brak produktu polarnego (podaj polar_path)")
+        path = polar_path
+    else:
+        raise PatchRejected(
+            f"lat={lat}: obsługujemy |lat| <= {GLOBAL_MAX_ABS_LAT:g}° (produkt globalny) "
+            f"i lat <= {POLAR_MAX_LAT:g}° (produkt polarny); pas 75-80° i biegun północny pomijamy"
+        )
+    with rasterio.open(path) as src:
+        return extract_moon_patch(src, lat, lon)
+
+
+def moon_features_for(
+    lat: float,
+    lon: float,
+    lola_path: str | Path = LOLA_GLOBAL_PATH,
+    polar_path: str | Path | None = LOLA_POLAR_PATH,
+) -> dict[str, float]:
+    """12 cech łatki 10x10 km wyciętej na żywo z rastra LOLA (np. dla UI).
+
+    Rzuca ``PatchRejected`` (podklasa ``ValueError``) dla pasa 75-80°, bieguna północnego
     i łatek odrzuconych.
     """
-    with rasterio.open(lola_path) as src:
-        patch = extract_moon_patch(src, lat, lon)
-    return extract_patch_features(patch, PIXEL_SIZE_M)
+    return extract_patch_features(moon_patch_for(lat, lon, lola_path, polar_path), PIXEL_SIZE_M)
 
 
 def find_analogs(

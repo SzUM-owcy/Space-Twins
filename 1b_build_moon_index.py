@@ -13,19 +13,17 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import rasterio
 from matplotlib.colors import LightSource
 
 from config import DATA_DIR, OUTPUT_DIR, PIXEL_SIZE_M
 from src.morphometry import FEATURE_NAMES, extract_patch_features
-from src.query import PatchRejected, extract_moon_patch
+from src.query import PatchRejected, moon_patch_for
 
-LOLA_PATH = DATA_DIR / "lola" / "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
 PATCH_DIR = DATA_DIR / "patches" / "moon"
 INDEX_PATH = DATA_DIR / "moon_index.csv"
 
 # slug -> (lat, lon). Współrzędne wschodnie dodatnie, lon -180..180.
-# Produkt globalny 118 m: |lat| <= 75. Miejsca polarne (lat <= -80) wymagają produktu polarnego.
+# Produkt globalny 118 m: |lat| <= 75; polarny 20 m: lat <= -80 (wybierany automatycznie wg lat).
 SITES: dict[str, tuple[float, float]] = {
     # Rów lawowy w Marius Hills wg Wikipedii (Lunar lava tube: 14°4'20.83"N 56°44'57.49"W).
     # Wcześniejsze (14.0, -56.0) leżało ok. 22 km na wschód, na płaskim zboczu płaskowyżu.
@@ -47,6 +45,13 @@ SITES: dict[str, tuple[float, float]] = {
     # Wyżyny (szorstkie)
     "highlands_maurolycus": (-42.0, 14.0),
     "highlands_hipparchus": (-5.5, 4.8),
+    # Okolice bieguna południowego (produkt polarny); kandydaci na bazy Artemis
+    # Shackleton i de Gerlache: środek dna krateru wyznaczony z minimum wysokości LOLA (±12 km od
+    # nominalnych (-89.9, 0.0) i (-88.5, -87.1); w nominalnym punkcie łatka zahaczała o ścianę).
+    "shackleton": (-89.69, 126.1),
+    "haworth": (-87.5, -5.0),
+    "de_gerlache": (-88.39, -91.4),
+    "malapert": (-85.9, 0.0),  # masyw Malapert
 }
 
 RECORD_COLUMNS = ["patch_id", "source", "region", "center_lat", "center_lon", *FEATURE_NAMES]
@@ -71,32 +76,31 @@ def main() -> None:
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     rows = []
-    with rasterio.open(LOLA_PATH) as src:
-        for slug, (lat, lon) in SITES.items():
-            patch_id = f"moon_{slug}"
-            try:
-                patch = extract_moon_patch(src, lat, lon)
-            except PatchRejected as err:
-                print(f"[POMINIĘTO] {patch_id}: {err}")
-                continue
-            print(
-                f"{patch_id}: shape={patch.shape} min={patch.min():.1f} "
-                f"max={patch.max():.1f} mean={patch.mean():.1f} m"
-            )
+    for slug, (lat, lon) in SITES.items():
+        patch_id = f"moon_{slug}"
+        try:
+            patch = moon_patch_for(lat, lon)
+        except PatchRejected as err:
+            print(f"[POMINIĘTO] {patch_id}: {err}")
+            continue
+        print(
+            f"{patch_id}: shape={patch.shape} min={patch.min():.1f} "
+            f"max={patch.max():.1f} mean={patch.mean():.1f} m"
+        )
 
-            features = extract_patch_features(patch, PIXEL_SIZE_M)
-            np.save(PATCH_DIR / f"{patch_id}.npy", patch.astype(np.float32))
-            save_preview(patch, slug, OUTPUT_DIR / f"{patch_id}.png")
-            rows.append(
-                {
-                    "patch_id": patch_id,
-                    "source": "LOLA",
-                    "region": slug,
-                    "center_lat": lat,
-                    "center_lon": lon,
-                    **features,
-                }
-            )
+        features = extract_patch_features(patch, PIXEL_SIZE_M)
+        np.save(PATCH_DIR / f"{patch_id}.npy", patch.astype(np.float32))
+        save_preview(patch, slug, OUTPUT_DIR / f"{patch_id}.png")
+        rows.append(
+            {
+                "patch_id": patch_id,
+                "source": "LOLA",
+                "region": slug,
+                "center_lat": lat,
+                "center_lon": lon,
+                **features,
+            }
+        )
 
     df = pd.DataFrame(rows, columns=RECORD_COLUMNS)
     df.to_csv(INDEX_PATH, index=False)
