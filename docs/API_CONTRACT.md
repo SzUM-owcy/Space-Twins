@@ -40,6 +40,7 @@ CORS jest otwarty dla `http://localhost:*` i `http://127.0.0.1:*` (Vite, CRA itd
 - `moon`: **albo** `{ "site_id": "..." }`, **albo** `{ "lat": 0.67, "lon": 23.47 }` (nie oba naraz).
 - `top_k` 1-50 (domyślnie 5), `w_slope` 0-1 (domyślnie 0.5; waga nachyleń, reszta to kształt), `max_per_region` >= 1 albo `null` (bez limitu; domyślnie 1).
 - Odpowiedź: `moon` (cechy surowe + `z_scores`), `out_of_range` (cechy Księżyca z |z| > 3 - **pokaż ostrzeżenie o mniejszej wiarygodności**), `results[]` posortowane rosnąco po `total_distance` (mniejsza = bardziej podobny). Każdy wynik ma `features` i `z_scores` (do wykresu radarowego "dlaczego to dopasowanie"), `lat`/`lon` (do pina na mapie).
+- Opcjonalnie `feature_weights`: słownik względnych ważności pojedynczych cech terenu (klucze z `/meta -> features`, wartości >= 0, pominięte = 1, nieznany klucz = 422). Zastępuje podział `w_slope`: odległość terenowa to ważone RMS z-score'ów. Razem z `w_thermal` i `w_illum` daje to wagę każdej cechy porównania.
 - Opcjonalnie `w_thermal` i `w_illum` (0-1, domyślnie 0 = tylko teren, suma <= 1): dodają składniki zakresu temperatur i oświetlenia (waga terenu = 1 - w_thermal - w_illum). Wtedy każdy wynik ma `terrain_distance`, `thermal_distance`/`thermal_status`, `illumination_distance`/`illumination_status` (`missing` = składnik pominięty), a `moon` ma `thermal_range_percentile` i `solar_visibility_fraction` (null, gdy brak danych).
 - Suwak `w_slope` w UI = ponowne wywołanie tego endpointu (zapytanie jest szybkie, rzędu dziesiątek ms).
 

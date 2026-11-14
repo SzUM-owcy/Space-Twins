@@ -159,6 +159,14 @@ sites use the global product (the 20 m polar DEM is not used). The feature is de
 strongly rank-correlated with roughness on Earth (about -0.85 with `rms_height`), and it saturates for
 permanently shadowed Moon sites (no Earth patch is that dark). The 0.10 default weight is experimental.
 
+### Per-feature weights
+
+Every comparison feature has an adjustable importance: `--w-thermal` and `--w-illum` set the thermal and
+illumination shares, and `--feature-weights slope_p50=3,rms_height=2,elev_skew=0` sets the relative
+importance of each of the 12 terrain features (omitted = 1, replaces `--w-slope`; terrain distance becomes
+the weighted RMS of the z-scores). The API accepts the same as `feature_weights`, `w_thermal`, `w_illum`
+in `POST /api/v1/analogs`.
+
 ### Run tests
 
 ```bash

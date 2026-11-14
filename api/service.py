@@ -276,6 +276,7 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
         features, earth, top_k=req.top_k, w_slope=req.w_slope, max_per_region=req.max_per_region,
         moon_thermal_percentile=moon_thermal, earth_thermal=_table(THERMAL_EARTH_PATH), w_thermal=req.w_thermal,
         moon_illumination=moon_illum, earth_illumination=_table(ILLUM_EARTH_PATH), w_illum=req.w_illum,
+        feature_weights=req.feature_weights,
     )
     by_id = earth.set_index("patch_id")
     items = []
@@ -317,6 +318,7 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
         w_slope=req.w_slope,
         w_thermal=req.w_thermal,
         w_illum=req.w_illum,
+        feature_weights=req.feature_weights,
         top_k=req.top_k,
         max_per_region=req.max_per_region,
         out_of_range=list(result.attrs["out_of_range"]),

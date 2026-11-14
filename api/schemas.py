@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from config import FEATURE_NAMES
+
 FeatureGroup = Literal["slope", "shape"]
 Body = Literal["moon", "earth"]
 ErrorCode = Literal[
@@ -124,8 +126,24 @@ class AnalogsRequest(Model):
         default=0.0, ge=0, le=1, description="Waga oświetlenia (widoczność Słońca); 0 = wyłączone. w_thermal + w_illum <= 1."
     )
 
+    feature_weights: dict[str, float] | None = Field(
+        default=None,
+        description=(
+            "Względne ważności 12 cech terenu (klucze = nazwy z /meta -> features, wartości >= 0; pominięte = 1). "
+            "Zastępuje podział w_slope. null = domyślny schemat w_slope."
+        ),
+        examples=[{"slope_p50": 3, "rms_height": 2, "elev_skew": 0}],
+    )
+
     @model_validator(mode="after")
     def _weights_sum(self) -> AnalogsRequest:
+        if self.feature_weights is not None:
+            unknown = sorted(set(self.feature_weights) - set(FEATURE_NAMES))
+            if unknown:
+                raise ValueError(f"nieznane cechy w feature_weights: {unknown}")
+            vals = list(self.feature_weights.values())
+            if any(v < 0 for v in vals) or (len(vals) == len(FEATURE_NAMES) and sum(vals) <= 0):
+                raise ValueError("feature_weights: wagi >= 0 i nie wszystkie zerowe")
         if self.w_thermal + self.w_illum > 1.0:
             raise ValueError("w_thermal + w_illum musi być <= 1")
         return self
@@ -165,6 +183,7 @@ class Analog(Model):
 class AnalogsResponse(Model):
     moon: MoonSummary
     w_slope: float
+    feature_weights: dict[str, float] | None = None
     w_thermal: float = 0.0
     w_illum: float = 0.0
     top_k: int

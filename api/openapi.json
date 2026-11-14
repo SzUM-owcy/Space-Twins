@@ -148,6 +148,28 @@
       "AnalogsRequest": {
         "additionalProperties": false,
         "properties": {
+          "feature_weights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Względne ważności 12 cech terenu (klucze = nazwy z /meta -> features, wartości >= 0; pominięte = 1). Zastępuje podział w_slope. null = domyślny schemat w_slope.",
+            "examples": [
+              {
+                "elev_skew": 0,
+                "rms_height": 2,
+                "slope_p50": 3
+              }
+            ],
+            "title": "Feature Weights"
+          },
           "max_per_region": {
             "anyOf": [
               {
@@ -206,6 +228,20 @@
       "AnalogsResponse": {
         "additionalProperties": false,
         "properties": {
+          "feature_weights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Weights"
+          },
           "max_per_region": {
             "anyOf": [
               {

@@ -36,6 +36,7 @@
   "solar_visibility_fraction": null
  },
  "w_slope": 0.5,
+ "feature_weights": null,
  "w_thermal": 0.0,
  "w_illum": 0.0,
  "top_k": 5,
