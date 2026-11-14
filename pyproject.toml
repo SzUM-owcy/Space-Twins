@@ -5,8 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "matplotlib>=3.11.2",
     "numpy>=2.5.4",
+    "planetary-computer>=1.0.0",
+    "pystac-client>=0.9.1",
     "rasterio>=1.5.2",
+    "requests>=2.34.2",
 ]
 
 [[tool.uv.index]]
@@ -17,3 +21,7 @@ default = true
 dev = [
     "pytest>=9.2.0",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["earth"]
+testpaths = ["tests"]
