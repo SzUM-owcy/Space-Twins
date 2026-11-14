@@ -1,7 +1,9 @@
 """Mafic-felsic composition side tables: Earth ASTER GED emissivity ratio, Moon Diviner Christiansen Feature.
 
 Usage:
-  uv run --frozen python 1e_build_composition.py moon                 # raw CF for Moon sites + 5 deg reference grid
+  uv run --frozen python 1e_build_composition.py moon                 # CF for Moon sites + 5 deg reference grid
+  uv run --frozen python 1e_build_composition.py minerals             # Moon mineral fractions, raw-vs-corrected CF
+  uv run --frozen python 1e_build_composition.py lithology            # Earth Macrostrat lithology (no login)
   uv run --frozen python 1e_build_composition.py earth [--regions a,b]  # raw ASTER MI/QI (needs Earthdata login or tiles)
   uv run --frozen python 1e_build_composition.py validate             # class ordering, outputs/composition_validation.*
   uv run --frozen python 1e_build_composition.py finalize [--earth-direction higher_is_mafic|lower_is_mafic]
@@ -21,6 +23,14 @@ import rasterio
 
 from config import (
     COMPOSITION_CF_MAX_ABS_LAT,
+    COMPOSITION_CF_RAW_PATH,
+    COMPOSITION_CF_RAW_URL,
+    COMPOSITION_DIR,
+    COMPOSITION_EARTH_LITHOLOGY_PATH,
+    COMPOSITION_MINERAL_MAPS,
+    COMPOSITION_MINERAL_URL,
+    COMPOSITION_MOON_MINERALS_PATH,
+    COMPOSITION_MOON_RAW_COMPARISON_PATH,
     COMPOSITION_EARTH_COLUMNS,
     COMPOSITION_EARTH_PATH,
     COMPOSITION_EARTH_REFERENCE_PATH,
@@ -42,13 +52,13 @@ from src.composition import (
     mafic_felsic_percentile,
     save_composition_reference,
 )
-from src.moon_composition import ensure_cf_map, moon_composition
+from src.moon_composition import ensure_cf_map, moon_composition, moon_raster_median
 
 log = logging.getLogger("composition")
 MOON_INDEX_PATH = DATA_DIR / "moon_index.csv"
 MOON_GRID_PATH = DATA_DIR / "composition_moon_grid.csv"
 EARTH_DATASET = "ASTER GED AG100.003 (100 m): median Mafic Index e12/e13, NDVI<=0.2, land, >=3 observations"
-MOON_DATASET = "LRO Diviner Christiansen Feature map DIVGLOB1701_CX3 (32 ppd, viewing-geometry corrected)"
+MOON_DATASET = "LRO Diviner Christiansen Feature map, space-weathering corrected (Zenodo 4558194, 32 ppd)"
 # Reference classes for validation; Earth classes are region slugs, Moon classes are site ids.
 EARTH_CLASSES = {
     "mafic": ["craters_of_the_moon", "mauna_loa", "carrizozo", "zuni_bandera", "lava_beds", "paricutin"],
@@ -86,6 +96,40 @@ def build_moon() -> None:
     table.reindex(columns=COMPOSITION_MOON_COLUMNS).to_csv(COMPOSITION_MOON_PATH, index=False)
     pd.DataFrame(grid).to_csv(MOON_GRID_PATH, index=False)
     log.info("moon: %d/%d sites ok, %d reference cells", (table["composition_status"] == STATUS_OK).sum(), len(table), len(grid))
+
+
+def build_moon_diagnostics() -> None:
+    """Side tables: raw-vs-corrected CF comparison and Diviner mineral fractions (diagnostics only, never scored)."""
+    sites = pd.read_csv(MOON_INDEX_PATH)
+    cmp_ = pd.DataFrame({"patch_id": sites["patch_id"]})
+    with rasterio.open(ensure_cf_map(COMPOSITION_CF_RAW_PATH, COMPOSITION_CF_RAW_URL)) as raw:
+        cmp_["cf_viewing_corrected_microns"] = [moon_raster_median(s.center_lat, s.center_lon, raw) for s in sites.itertuples()]
+    with rasterio.open(ensure_cf_map()) as cor:
+        cmp_["cf_space_weathering_corrected_microns"] = [moon_raster_median(s.center_lat, s.center_lon, cor) for s in sites.itertuples()]
+    cmp_.to_csv(COMPOSITION_MOON_RAW_COMPARISON_PATH, index=False)
+    minerals = pd.DataFrame({"patch_id": sites["patch_id"]})
+    for name, fname in COMPOSITION_MINERAL_MAPS.items():
+        with rasterio.open(ensure_cf_map(COMPOSITION_DIR / fname, COMPOSITION_MINERAL_URL.format(name=fname))) as ds:
+            minerals[f"{name}_fraction"] = [moon_raster_median(s.center_lat, s.center_lon, ds) for s in sites.itertuples()]
+    minerals.to_csv(COMPOSITION_MOON_MINERALS_PATH, index=False)
+    log.info("moon diagnostics written:\n%s", minerals.round(3).to_string(index=False))
+
+
+def build_earth_lithology() -> None:
+    """Macrostrat bedrock class per Earth patch (categorical, explanatory; no login). Resumable by patch."""
+    from src.earth_lithology import lithology_table
+
+    index = pd.read_csv(EARTH_INDEX_PATH)
+    done = pd.read_csv(COMPOSITION_EARTH_LITHOLOGY_PATH) if COMPOSITION_EARTH_LITHOLOGY_PATH.exists() else pd.DataFrame()
+    todo = index[~index["patch_id"].isin(done["patch_id"])] if len(done) else index
+    log.info("lithology: %d patches to do, %d already done", len(todo), len(done))
+    for start in range(0, len(todo), 500):
+        chunk = todo.iloc[start : start + 500]
+        rows = pd.DataFrame(lithology_table([(r.patch_id, r.center_lat, r.center_lon) for r in chunk.itertuples()]))
+        failed = rows["lithology_mapped_samples"].eq(0) & rows["dominant_lithology"].eq("unknown")
+        done = pd.concat([done, rows], ignore_index=True)
+        done.to_csv(COMPOSITION_EARTH_LITHOLOGY_PATH, index=False)
+        log.info("lithology: %d/%d (unmapped in chunk: %d)", min(start + 500, len(todo)), len(todo), failed.sum())
 
 
 def build_earth(regions: list[str] | None) -> None:
@@ -236,12 +280,16 @@ def finalize(earth_dir: str | None) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("step", choices=["moon", "earth", "validate", "finalize"])
+    parser.add_argument("step", choices=["moon", "minerals", "lithology", "earth", "validate", "finalize"])
     parser.add_argument("--regions", default=None, help="comma-separated Earth regions (re-does them)")
     parser.add_argument("--earth-direction", choices=["higher_is_mafic", "lower_is_mafic"], default=None)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-    if args.step == "moon":
+    if args.step == "lithology":
+        build_earth_lithology()
+    elif args.step == "minerals":
+        build_moon_diagnostics()
+    elif args.step == "moon":
         build_moon()
     elif args.step == "earth":
         build_earth(args.regions.split(",") if args.regions else None)
