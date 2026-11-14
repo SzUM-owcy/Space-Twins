@@ -1,5 +1,5 @@
 region,dem,validation,west,south,east,north
-uyuni,nasadem,False,-68.0,-20.7,-67.0,-19.7
+uyuni,nasadem,False,-67.9,-20.5,-67.1,-19.9
 black_rock,nasadem,False,-119.5,40.4,-118.5,41.4
 meteor_crater,nasadem,True,-111.5,34.5,-110.5,35.5
 etna,nasadem,False,14.5,37.25,15.5,38.25
