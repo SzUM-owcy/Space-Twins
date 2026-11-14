@@ -132,3 +132,106 @@ COMPOSITION_TRIM_PERCENT = 1.0
 COMPOSITION_QI_FLAG_PERCENTILE = 95.0
 COMPOSITION_GRID_STEP_DEG = 5.0
 W_COMPOSITION_DEFAULT = 0.0  # opt-in: experimental, needs the Earth ASTER GED build
+
+# --- Practicality (separate from the scientific analog score) ---
+PRACTICALITY_VERSION = "v0"
+PRACTICALITY_PATH = DATA_DIR / "practicality_earth.csv"
+PRACTICALITY_DIR = DATA_DIR / "practicality"  # gitignored download cache
+# Ascending thresholds: value <= t[i] maps to band i (LOW, MEDIUM, HIGH cost), above the last is VERY HIGH.
+PRACTICALITY_THRESHOLDS = {
+    "city_travel_minutes": (60, 120, 240),
+    "major_road_distance_km": (10, 30, 75),
+    "airport_travel_minutes": (120, 240, 480),
+    "hospital_travel_minutes": (60, 120, 240),
+    "grid_distance_km": (5, 25, 100),
+    "facility_core_slope_p90": (5, 10, 20),
+    "facility_core_relief_m": (10, 30, 100),
+}
+FACILITY_CORE_PIXELS = 9  # ~1 km at 117.6 m/px
+FACILITY_CORE_STRIDE = 2
+PRACTICALITY_BARE_FULL_FRACTION = 0.5  # bare/sparse share giving the full bare-ground score
+PRACTICALITY_GRID_CENSORED_KM = 150.0  # no OSM line within the search box: distance is at least this
+PRACTICALITY_GRID_PAD_DEG = 1.5
+PRACTICALITY_BAND_SCORES = (100.0, 62.5, 37.5, 12.5)  # centre of each 25-point class
+PRACTICALITY_CLASS_EDGES = (75.0, 50.0, 25.0)  # LOW >= 75, MEDIUM >= 50, HIGH >= 25, else VERY HIGH
+PRACTICALITY_SCORE_WEIGHTS = {
+    "field": {"access": 0.30, "emergency": 0.25, "buildability": 0.20, "infrastructure": 0.10, "population": 0.15},
+    "facility": {"access": 0.15, "emergency": 0.15, "buildability": 0.25, "infrastructure": 0.35, "population": 0.10},
+}
+# Population within 25 km: (upper bound, isolation penalty, impact penalty), both 0-100 (higher = worse).
+PRACTICALITY_POPULATION_BANDS = (
+    (100, 100.0, 0.0),
+    (50_000, 0.0, 10.0),
+    (250_000, 0.0, 50.0),
+    (float("inf"), 0.0, 100.0),
+)
+PRACTICALITY_FLAG_COLUMNS = [
+    "protected_area_status", "world_heritage_status", "community_rights_status", "biodiversity_status",
+    "water_stress_status", "hazard_status", "security_status",
+]
+PRACTICALITY_COLUMNS = [
+    "patch_id",
+    "city_travel_minutes", "airport_travel_minutes", "major_road_distance_km", "access_score",
+    "facility_core_slope_p90", "facility_core_relief_m", "bare_ground_fraction", "tree_fraction", "wetland_fraction", "buildability_score",
+    "hospital_travel_minutes", "emergency_support_score",
+    "grid_distance_km", "grid_source", "infrastructure_score",
+    "population_10km", "population_25km", "population_50km",
+    "isolation_logistics_penalty", "population_impact_penalty", "population_score",
+    "protected_overlap_fraction", "protected_category", "world_heritage_overlap", "protected_communal_land", "nearest_volcano_km", "nearest_volcano_last_eruption",
+    *PRACTICALITY_FLAG_COLUMNS,
+    "field_campaign_score", "facility_score", "field_cost_class", "facility_cost_class",
+    "hard_excluded", "exclusion_reasons",
+    "practicality_completeness", "practicality_confidence", "practicality_version",
+]
+
+# Phase 2 open-data sources (no login)
+PRACTICALITY_URLS = {
+    "worldpop": "https://data.worldpop.org/GIS/Population/Global_2000_2020/2020/0_Mosaicked/ppp_2020_1km_Aggregated.tif",
+    "airports": "https://davidmegginson.github.io/ourairports-data/airports.csv",
+    "roads": "https://naturalearth.s3.amazonaws.com/10m_cultural/ne_10m_roads.zip",
+}
+PRACTICALITY_WORLDPOP_PATH = PRACTICALITY_DIR / "ppp_2020_1km.tif"
+PRACTICALITY_CITY_COVERAGE = "Accessibility__201501_Global_Travel_Time_to_Cities"
+PRACTICALITY_HEALTH_COVERAGE = "Accessibility__202001_Global_Motorized_Travel_Time_to_Healthcare"
+PRACTICALITY_AIRPORT_DETOUR = 1.4  # road length / straight line
+PRACTICALITY_AIRPORT_SPEED_KMH = 50.0
+
+# Phase 4 constraint flags (policy, configurable)
+PRACTICALITY_WDPA_URL = "https://services5.arcgis.com/Mj0hjvkNtV7NRhA7/arcgis/rest/services/WDPA_v0/FeatureServer/1/query"
+PRACTICALITY_GVP_URL = (
+    "https://webservices.volcano.si.edu/geoserver/GVP-VOTW/wfs?service=WFS&version=1.0.0&request=GetFeature"
+    "&typeName=GVP-VOTW:Smithsonian_VOTW_Holocene_Volcanoes&outputFormat=application/json"
+)
+PRACTICALITY_PROTECTED_CACHE = PRACTICALITY_DIR / "protected.csv"
+PRACTICALITY_VOLCANO_CACHE = PRACTICALITY_DIR / "volcanoes.csv"
+PRACTICALITY_STRICT_IUCN = ("Ia", "Ib")  # strict categories: excluded when overlap >= the fraction below
+PRACTICALITY_STRICT_OVERLAP = 0.5
+PRACTICALITY_VOLCANO_WARN_KM = 20.0
+PRACTICALITY_VOLCANO_WARN_SINCE = 1900
+PRACTICALITY_VOLCANO_EXCLUDE_KM = 10.0
+PRACTICALITY_VOLCANO_EXCLUDE_SINCE = 2020  # recent eruption very close: acute hazard
+PRACTICALITY_TREE_WARN = 0.30
+PRACTICALITY_WETLAND_WARN = 0.10
+PRACTICALITY_ARID_BARE_FRACTION = 0.5  # arid proxy for the water-stress flag
+PRACTICALITY_WATER_STRESS_POP_25KM = 1000
+# Curated advisory per region (dynamic: recheck before any real deployment). Unlisted regions default to "ok".
+PRACTICALITY_SECURITY_BY_REGION = {
+    "meidob": "excluded", "bayuda": "excluded",
+    "tibesti": "warning", "aorounga": "warning", "gweni_fada": "warning", "richat": "warning", "hoggar": "warning",
+    "danakil": "manual_review", "nabro": "manual_review", "makhtesh_ramon": "manual_review",
+}
+
+# Approximate distance (km) from each region to the nearest high-voltage line, from general knowledge.
+# Used only where no OSM Overpass result is cached; marked grid_source="estimated". 150 = remote/none (cap).
+PRACTICALITY_GRID_ESTIMATE_KM = {
+    "death_valley": 15, "dry_valleys": 150, "elgygytgyn": 150, "erg_chebbi": 20, "etna": 3, "gosses_bluff": 100,
+    "gran_desierto": 30, "gweni_fada": 150, "haughton": 150, "harrat_lunayyir": 40, "hekla": 15, "high_atlas": 15,
+    "hoggar": 100, "jebel_shams": 20, "jingpo_lake": 15, "khaybar": 25, "kamestastin": 150, "klyuchevskoy": 40,
+    "ladakh": 40, "lanzarote": 5, "lava_beds": 15, "lonar": 10, "lut": 60, "mauna_kea": 10, "mauna_loa": 15,
+    "makhtesh_ramon": 15, "meidob": 150, "meteor_crater": 20, "nabro": 150, "namib": 40, "odadahraun": 60,
+    "ol_doinyo_lengai": 100, "pico_do_fogo": 10, "patagonia": 80, "paricutin": 20, "pinacate": 40, "pingualuit": 150,
+    "puna": 100, "reunion": 5, "richat": 120, "ries": 5, "rio_grande_gorge": 20, "saririaky": 40,
+    "schirmacher_oasis": 150, "sittampundi": 10, "sverrefjell": 150, "teide": 5, "tibesti": 150, "tien_shan": 30,
+    "tin_bider": 100, "uyuni": 60, "vredefort": 15, "wadi_rum": 30, "waqf_as_suwwan": 40, "white_sands": 20,
+    "wolfe_creek": 120, "zagros": 20, "zuni_bandera": 25,
+}

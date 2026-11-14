@@ -231,3 +231,6 @@ data/spice/
 data/validation/
 data/composition/
 data/aster_ged/
+
+# Practicality download cache
+data/practicality/

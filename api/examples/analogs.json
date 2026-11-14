@@ -85,6 +85,8 @@
    "dominant_lithology": "unknown",
    "mixed_lithology_flag": false,
    "stability": null,
+   "practicality": null,
+   "constraints": null,
    "features": {
     "slope_p05": 0.39372427121128917,
     "slope_p10": 0.5268955745477882,
@@ -148,6 +150,8 @@
    "dominant_lithology": "unknown",
    "mixed_lithology_flag": false,
    "stability": null,
+   "practicality": null,
+   "constraints": null,
    "features": {
     "slope_p05": 0.24820559159067068,
     "slope_p10": 0.34954209911793443,
@@ -211,6 +215,8 @@
    "dominant_lithology": "mafic",
    "mixed_lithology_flag": false,
    "stability": null,
+   "practicality": null,
+   "constraints": null,
    "features": {
     "slope_p05": 0.30579695492873205,
     "slope_p10": 0.4301522211255204,
@@ -274,6 +280,8 @@
    "dominant_lithology": "carbonate",
    "mixed_lithology_flag": true,
    "stability": null,
+   "practicality": null,
+   "constraints": null,
    "features": {
     "slope_p05": 0.3596851814624589,
     "slope_p10": 0.48982323563559416,
@@ -337,6 +345,8 @@
    "dominant_lithology": "unknown",
    "mixed_lithology_flag": false,
    "stability": null,
+   "practicality": null,
+   "constraints": null,
    "features": {
     "slope_p05": 0.22747165302935812,
     "slope_p10": 0.3157684048890018,

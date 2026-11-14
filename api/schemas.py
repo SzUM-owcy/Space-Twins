@@ -121,6 +121,10 @@ class MoonQuery(Model):
 
 class AnalogsRequest(Model):
     moon: MoonQuery
+    include_practicality: bool = Field(
+        default=False,
+        description="Dołącz bloki practicality/constraints do każdego wyniku. Nie zmienia rankingu ani odległości naukowych.",
+    )
     top_k: int = Field(default=5, ge=1, le=50)
     w_slope: float = Field(default=0.5, ge=0, le=1, description="Waga nachyleń; (1 - w_slope) = waga kształtu.")
     max_per_region: int | None = Field(
@@ -186,6 +190,46 @@ class MoonSummary(Model):
     composition_status: str | None = Field(default=None, description="ok / outside_diviner_cf_coverage / missing; null = nie liczone.")
 
 
+CostClass = Literal["LOW", "MEDIUM", "HIGH", "VERY HIGH", "EXCLUDED / MANUAL REVIEW", "missing"]
+FlagStatus = Literal["ok", "warning", "manual_review", "excluded", "missing"]
+
+
+class Practicality(Model):
+    """Koszt/praktyczność symulacji (0-100, wyższe = łatwiej/taniej). Niezależne od podobieństwa naukowego."""
+
+    access_score: float | None = None
+    buildability_score: float | None = None
+    emergency_support_score: float | None = None
+    infrastructure_score: float | None = None
+    population_score: float | None = None
+    isolation_logistics_penalty: float | None = Field(default=None, description="0-100, wyższe = gorzej (mało ludzi = izolacja logistyczna).")
+    population_impact_penalty: float | None = Field(default=None, description="0-100, wyższe = gorzej (dużo ludzi = wpływ społeczny); osobno od izolacji.")
+    population_25km: float | None = None
+    grid_source: Literal["osm", "estimated", "missing"] | None = Field(default=None, description="estimated = przybliżenie z wiedzy ogólnej, nie z mapy.")
+    field_campaign_score: float | None = None
+    field_cost_class: CostClass | None = None
+    facility_score: float | None = None
+    facility_cost_class: CostClass | None = None
+    practicality_completeness: float | None = Field(default=None, description="Udział dostępnych wymiarów (0-1); niska wartość obniża pewność, nie wynik.")
+    practicality_confidence: Literal["high", "medium", "low", "missing"] | None = None
+    pareto_field: bool = Field(default=False, description="Niezdominowany (odległość naukowa vs field_campaign_score) wśród zwróconych kandydatów.")
+    pareto_facility: bool = Field(default=False, description="To samo dla facility_score.")
+
+
+class Constraints(Model):
+    """Ograniczenia wewnętrzne lokalizacji (flagi, nie wynik liczbowy)."""
+
+    protected_area_status: FlagStatus
+    world_heritage_status: FlagStatus
+    community_rights_status: FlagStatus = Field(description="Brak danych o prawach wspólnot nigdy nie oznacza 'ok' (manual_review).")
+    biodiversity_status: FlagStatus
+    water_stress_status: FlagStatus
+    hazard_status: FlagStatus
+    security_status: FlagStatus
+    hard_excluded: bool
+    exclusion_reasons: list[str]
+
+
 class Analog(Model):
     rank: int
     patch_id: str
@@ -243,6 +287,8 @@ class Analog(Model):
     solar_visibility_fraction: float | None = Field(
         default=None, description="Ułamek dnia (Słońce nad horyzontem astronomicznym), gdy teren nie zasłania Słońca (0..1); null = brak danych."
     )
+    practicality: Practicality | None = Field(default=None, description="Tylko gdy include_practicality=true i tabela istnieje.")
+    constraints: Constraints | None = None
     features: dict[str, float]
     z_scores: dict[str, float]
 

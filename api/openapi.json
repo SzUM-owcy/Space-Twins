@@ -74,6 +74,16 @@
             ],
             "title": "Composition Status"
           },
+          "constraints": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Constraints"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "dominant_lithology": {
             "anyOf": [
               {
@@ -243,6 +253,17 @@
             "title": "Patch Id",
             "type": "string"
           },
+          "practicality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Practicality"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tylko gdy include_practicality=true i tabela istnieje."
+          },
           "rank": {
             "title": "Rank",
             "type": "integer"
@@ -262,6 +283,18 @@
           "slope_distance": {
             "title": "Slope Distance",
             "type": "number"
+          },
+          "solar_visibility_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek dnia (Słońce nad horyzontem astronomicznym), gdy teren nie zasłania Słońca (0..1); null = brak danych.",
+            "title": "Solar Visibility Fraction"
           },
           "source": {
             "enum": [
@@ -339,6 +372,18 @@
             ],
             "title": "Thermal Quality"
           },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni łatki [K] (MODIS); null = brak danych. Tylko do wyświetlania.",
+            "title": "Thermal Range K"
+          },
           "thermal_status": {
             "anyOf": [
               {
@@ -408,6 +453,12 @@
               }
             ],
             "title": "Feature Weights"
+          },
+          "include_practicality": {
+            "default": false,
+            "description": "Dołącz bloki practicality/constraints do każdego wyniku. Nie zmienia rankingu ani odległości naukowych.",
+            "title": "Include Practicality",
+            "type": "boolean"
           },
           "max_per_region": {
             "anyOf": [
@@ -559,6 +610,114 @@
           "results"
         ],
         "title": "AnalogsResponse",
+        "type": "object"
+      },
+      "Constraints": {
+        "additionalProperties": false,
+        "description": "Ograniczenia wewnętrzne lokalizacji (flagi, nie wynik liczbowy).",
+        "properties": {
+          "biodiversity_status": {
+            "enum": [
+              "ok",
+              "warning",
+              "manual_review",
+              "excluded",
+              "missing"
+            ],
+            "title": "Biodiversity Status",
+            "type": "string"
+          },
+          "community_rights_status": {
+            "description": "Brak danych o prawach wspólnot nigdy nie oznacza 'ok' (manual_review).",
+            "enum": [
+              "ok",
+              "warning",
+              "manual_review",
+              "excluded",
+              "missing"
+            ],
+            "title": "Community Rights Status",
+            "type": "string"
+          },
+          "exclusion_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Exclusion Reasons",
+            "type": "array"
+          },
+          "hard_excluded": {
+            "title": "Hard Excluded",
+            "type": "boolean"
+          },
+          "hazard_status": {
+            "enum": [
+              "ok",
+              "warning",
+              "manual_review",
+              "excluded",
+              "missing"
+            ],
+            "title": "Hazard Status",
+            "type": "string"
+          },
+          "protected_area_status": {
+            "enum": [
+              "ok",
+              "warning",
+              "manual_review",
+              "excluded",
+              "missing"
+            ],
+            "title": "Protected Area Status",
+            "type": "string"
+          },
+          "security_status": {
+            "enum": [
+              "ok",
+              "warning",
+              "manual_review",
+              "excluded",
+              "missing"
+            ],
+            "title": "Security Status",
+            "type": "string"
+          },
+          "water_stress_status": {
+            "enum": [
+              "ok",
+              "warning",
+              "manual_review",
+              "excluded",
+              "missing"
+            ],
+            "title": "Water Stress Status",
+            "type": "string"
+          },
+          "world_heritage_status": {
+            "enum": [
+              "ok",
+              "warning",
+              "manual_review",
+              "excluded",
+              "missing"
+            ],
+            "title": "World Heritage Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "protected_area_status",
+          "world_heritage_status",
+          "community_rights_status",
+          "biodiversity_status",
+          "water_stress_status",
+          "hazard_status",
+          "security_status",
+          "hard_excluded",
+          "exclusion_reasons"
+        ],
+        "title": "Constraints",
         "type": "object"
       },
       "EarthRegion": {
@@ -857,6 +1016,21 @@
             "title": "Lon",
             "type": "number"
           },
+          "minerals": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Udziały plagioklaz/piroksen/oliwin (Diviner, ±70°); null poza zasięgiem. Mogą wychodzić poza 0..1 - normalizuj w UI.",
+            "title": "Minerals"
+          },
           "name": {
             "description": "Nazwa do wyświetlenia, np. Apollo 11.",
             "title": "Name",
@@ -866,6 +1040,30 @@
             "description": "= patch_id, np. moon_apollo_11.",
             "title": "Site Id",
             "type": "string"
+          },
+          "solar_visibility_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek dnia, gdy teren nie zasłania Słońca (0..1); null = brak danych.",
+            "title": "Solar Visibility Fraction"
+          },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni [K] (Diviner); null = brak danych.",
+            "title": "Thermal Range K"
           }
         },
         "required": [
@@ -962,6 +1160,18 @@
             ],
             "description": "Ułamek czasu, gdy Słońce jest nad horyzontem terenu, albo null.",
             "title": "Solar Visibility Fraction"
+          },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni [K] (Diviner) dla miejsca z listy; null = brak danych albo własne współrzędne.",
+            "title": "Thermal Range K"
           },
           "thermal_range_percentile": {
             "anyOf": [
@@ -1084,6 +1294,222 @@
           "heights_m"
         ],
         "title": "PatchGrid",
+        "type": "object"
+      },
+      "Practicality": {
+        "additionalProperties": false,
+        "description": "Koszt/praktyczność symulacji (0-100, wyższe = łatwiej/taniej). Niezależne od podobieństwa naukowego.",
+        "properties": {
+          "access_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Score"
+          },
+          "buildability_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buildability Score"
+          },
+          "emergency_support_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emergency Support Score"
+          },
+          "facility_cost_class": {
+            "anyOf": [
+              {
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH",
+                  "VERY HIGH",
+                  "EXCLUDED / MANUAL REVIEW",
+                  "missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facility Cost Class"
+          },
+          "facility_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facility Score"
+          },
+          "field_campaign_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Campaign Score"
+          },
+          "field_cost_class": {
+            "anyOf": [
+              {
+                "enum": [
+                  "LOW",
+                  "MEDIUM",
+                  "HIGH",
+                  "VERY HIGH",
+                  "EXCLUDED / MANUAL REVIEW",
+                  "missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Cost Class"
+          },
+          "grid_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "osm",
+                  "estimated",
+                  "missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "estimated = przybliżenie z wiedzy ogólnej, nie z mapy.",
+            "title": "Grid Source"
+          },
+          "infrastructure_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Infrastructure Score"
+          },
+          "isolation_logistics_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0-100, wyższe = gorzej (mało ludzi = izolacja logistyczna).",
+            "title": "Isolation Logistics Penalty"
+          },
+          "pareto_facility": {
+            "default": false,
+            "description": "To samo dla facility_score.",
+            "title": "Pareto Facility",
+            "type": "boolean"
+          },
+          "pareto_field": {
+            "default": false,
+            "description": "Niezdominowany (odległość naukowa vs field_campaign_score) wśród zwróconych kandydatów.",
+            "title": "Pareto Field",
+            "type": "boolean"
+          },
+          "population_25km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Population 25Km"
+          },
+          "population_impact_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0-100, wyższe = gorzej (dużo ludzi = wpływ społeczny); osobno od izolacji.",
+            "title": "Population Impact Penalty"
+          },
+          "population_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Population Score"
+          },
+          "practicality_completeness": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Udział dostępnych wymiarów (0-1); niska wartość obniża pewność, nie wynik.",
+            "title": "Practicality Completeness"
+          },
+          "practicality_confidence": {
+            "anyOf": [
+              {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low",
+                  "missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Practicality Confidence"
+          }
+        },
+        "title": "Practicality",
         "type": "object"
       }
     }
