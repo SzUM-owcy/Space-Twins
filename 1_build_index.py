@@ -46,7 +46,7 @@ class Region:
 
 # Phase 2 starter set. NASADEM covers ~60N..56S; higher latitudes need COPDEM.
 REGIONS = [
-    Region("uyuni", "nasadem", (-68.0, -20.7, -67.0, -19.7)),  # salt flat
+    Region("uyuni", "nasadem", (-67.9, -20.5, -67.1, -19.9)),  # salt flat only (no Andean volcano slopes)
     Region("black_rock", "nasadem", (-119.5, 40.4, -118.5, 41.4)),  # playa
     Region("meteor_crater", "nasadem", (-111.5, 34.5, -110.5, 35.5), validation=True),
     Region("etna", "nasadem", (14.5, 37.25, 15.5, 38.25)),  # volcano
