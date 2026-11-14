@@ -1,6 +1,7 @@
 """Build data/earth_index.csv: split regions into 10 km patches, extract, compute features.
 
     uv run python 1_build_index.py [--dem nasadem|copdem] [--regions uyuni,alps] [--workers 4]
+    uv run python 1_build_index.py --npz   # pack patches into data/patches/earth_patches.npz
 
 Default: all regions of the chosen DEM. Existing rows of other regions are kept.
 If Python SSL fails (WSL/proxy), set REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt.
@@ -45,12 +46,48 @@ class Region:
 
 # Phase 2 starter set. NASADEM covers ~60N..56S; higher latitudes need COPDEM.
 REGIONS = [
-    Region("uyuni", "nasadem", (-68.0, -20.7, -67.0, -19.7)),  # salt flat
+    Region("uyuni", "nasadem", (-67.9, -20.5, -67.1, -19.9)),  # salt flat only (no Andean volcano slopes)
     Region("black_rock", "nasadem", (-119.5, 40.4, -118.5, 41.4)),  # playa
     Region("meteor_crater", "nasadem", (-111.5, 34.5, -110.5, 35.5), validation=True),
     Region("etna", "nasadem", (14.5, 37.25, 15.5, 38.25)),  # volcano
     Region("alps", "nasadem", (7.0, 45.5, 8.0, 46.5)),  # steep control region
-    Region("askja", "copdem", (-17.3, 64.8, -16.3, 65.8)),  # Iceland, lava fields
+    Region("askja", "copdem", (-17.3, 64.8, -16.3, 65.8)),  # Iceland, lava fields (also covers Krafla, Holuhraun)
+    # flat
+    Region("bonneville", "nasadem", (-114.3, 40.3, -113.3, 41.3)),
+    # volcanic / lava
+    Region("mauna_loa", "nasadem", (-155.95, 19.1, -155.05, 19.75)),
+    Region("mauna_kea", "nasadem", (-155.9, 19.75, -155.1, 20.2), validation=True),
+    Region("craters_of_the_moon", "nasadem", (-114.0, 43.0, -113.0, 44.0), validation=True),
+    Region("pinacate", "nasadem", (-114.0, 31.4, -113.0, 32.4), validation=True),
+    Region("lanzarote", "nasadem", (-14.0, 28.7, -13.2, 29.3)),
+    Region("teide", "nasadem", (-17.2, 27.9, -16.2, 28.6)),
+    Region("reunion", "nasadem", (55.2, -21.4, 55.9, -20.85)),
+    Region("paricutin", "nasadem", (-102.75, 19.0, -101.75, 20.0)),
+    Region("klyuchevskoy", "nasadem", (160.1, 55.6, 161.1, 56.6)),
+    # craters
+    Region("aorounga", "nasadem", (18.75, 18.6, 19.75, 19.6)),
+    Region("ries", "nasadem", (10.0, 48.4, 11.0, 49.4), validation=True),
+    Region("cinder_lake", "nasadem", (-112.5, 35.0, -111.5, 36.0), validation=True),
+    # desert / dunes
+    Region("erg_chebbi", "nasadem", (-4.5, 30.7, -3.5, 31.7)),
+    Region("namib", "nasadem", (14.8, -25.0, 15.8, -24.0)),
+    Region("lut", "nasadem", (58.5, 30.0, 59.5, 31.0)),
+    Region("wadi_rum", "nasadem", (35.0, 29.1, 36.0, 30.1)),
+    Region("gran_desierto", "nasadem", (-115.0, 31.6, -114.0, 32.6)),
+    # mountains / steep
+    Region("tibesti", "nasadem", (17.0, 20.5, 18.0, 21.5)),
+    Region("atacama", "nasadem", (-69.0, -24.5, -68.0, -23.5)),
+    Region("tien_shan", "nasadem", (79.5, 41.5, 80.5, 42.5)),
+    # plateaus / basins
+    Region("colorado_plateau", "nasadem", (-111.0, 36.5, -110.0, 37.5)),
+    Region("basin_and_range", "nasadem", (-117.0, 38.5, -116.0, 39.5)),
+    Region("patagonia", "nasadem", (-72.0, -47.0, -71.0, -46.0)),
+    Region("death_valley", "nasadem", (-117.5, 36.0, -116.5, 37.0)),
+    Region("rio_grande_gorge", "nasadem", (-106.2, 35.8, -105.2, 36.8), validation=True),
+    # high latitude (COPDEM); bboxes widened in longitude because 1 deg of lon is ~49 km at 64N, ~28 km at 75N
+    Region("hekla", "copdem", (-20.7, 63.6, -18.7, 64.6)),
+    Region("odadahraun", "copdem", (-16.3, 65.0, -14.3, 66.0)),
+    Region("haughton", "copdem", (-92.0, 75.0, -88.0, 75.8), validation=True),
 ]
 
 
@@ -147,12 +184,23 @@ def process_region(region: Region, mosaic: Path) -> tuple[list[dict], Counter]:
     return rows, counter.counts
 
 
+def build_npz() -> None:
+    """Pack all indexed patches into data/patches/earth_patches.npz (keys = patch_id, float32)."""
+    ids = pd.read_csv(EARTH_INDEX_PATH)["patch_id"]
+    out = EARTH_PATCH_DIR.parent / "earth_patches.npz"
+    np.savez_compressed(out, **{i: np.load(EARTH_PATCH_DIR / f"{i}.npy").astype(np.float32) for i in ids})
+    print(f"wrote {out} ({len(ids)} patches, {out.stat().st_size / 1e6:.1f} MB)")
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--dem", choices=list(DEMS), default="nasadem")
     p.add_argument("--regions", help="comma-separated slugs (default: all of the chosen DEM)")
     p.add_argument("--workers", type=int, default=1)
+    p.add_argument("--npz", action="store_true", help="only pack existing patches into earth_patches.npz")
     args = p.parse_args()
+    if args.npz:
+        return build_npz()
 
     check_regions(REGIONS)
     write_regions_csv(REGIONS)

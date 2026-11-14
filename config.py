@@ -15,6 +15,8 @@ MOON_RADIUS_M = 1_737_400
 # ocean is stored as 0 (not nodata).
 NASADEM_NODATA = -32768
 LOLA_NODATA = -32768
+LOLA_GLOBAL_PATH = DATA_DIR / "lola" / "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
+LOLA_POLAR_PATH = DATA_DIR / "lola" / "ldem_80s_20m.lbl"
 LOLA_SCALE = 0.5
 
 # CONTRACT §2 pt 1: fallback if PROJ does not recognise the CRS stored in the LOLA file.
