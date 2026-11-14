@@ -8,17 +8,9 @@ from __future__ import annotations
 
 import numpy as np
 
-# Tymczasowo lokalnie; po C0 (config.py od A) importujemy stąd stałe z config.py.
-GRID_N = 85
-SLOPE_PERCENTILES = (5, 10, 25, 50, 75, 90, 95)
-FEATURE_NAMES = [
-    *(f"slope_p{q:02d}" for q in SLOPE_PERCENTILES),
-    "rms_height",
-    "tri_mean",
-    "relief_range",
-    "hypsometric_integral",
-    "elev_skew",
-]
+from config import FEATURE_NAMES, GRID_N
+
+SLOPE_PERCENTILES = (5, 10, 25, 50, 75, 90, 95)  # kolejność jak SLOPE_FEATURES w config.py
 
 # Poniżej tego rozstępu wysokości łatkę uznajemy za idealnie płaską (CONTRACT §3).
 _FLAT_PTP = 1e-6
