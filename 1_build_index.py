@@ -42,6 +42,7 @@ class Region:
     dem: str
     bbox: tuple[float, float, float, float]  # W, S, E, N
     validation: bool = False  # known lunar analogue, used for post-MVP validation
+    stride_km: float = PATCH_SIZE_M / 1000  # grid step; < patch size gives overlapping patches (small bboxes)
 
 
 # Phase 2 starter set. NASADEM covers ~60N..56S; higher latitudes need COPDEM.
@@ -101,6 +102,19 @@ REGIONS = [
     Region("vredefort", "nasadem", (27.0, -27.5, 28.0, -26.5)),
     Region("richat", "nasadem", (-11.9, 20.6, -10.9, 21.6)),
     Region("dry_valleys", "copdem", (160.5, -77.7, 162.5, -77.3)),  # Antarctica, ice-free valleys
+    # Exploratory candidates (axel_heiberg dropped: its bbox is all sea level -> water_zero_height); small bboxes are sampled with overlapping patches (stride_km < 10).
+    Region("jingpo_lake", "nasadem", (128.5, 43.87, 129.0, 44.33), stride_km=5),  # lava tubes / lake risk
+    Region("kamestastin", "nasadem", (-63.6, 55.7, -63.0, 56.05), stride_km=5),  # impact + anorthosite
+    Region("sittampundi", "nasadem", (77.75, 11.1, 78.05, 11.35), stride_km=5),  # anorthosite
+    Region("dalangtan", "nasadem", (91.17, 38.0, 92.17, 38.67)),  # hyperarid playa
+    Region("schirmacher_oasis", "copdem", (11.45, -70.8, 11.9, -70.7), stride_km=2.5),  # Antarctica
+    Region("meidob", "nasadem", (25.95, 14.95, 27.0, 15.65)),  # volcanic field
+    Region("lava_beds", "nasadem", (-121.75, 41.65, -121.25, 42.05), stride_km=5),
+    Region("elgygytgyn", "copdem", (171.65, 67.35, 172.45, 67.65), stride_km=5),  # arctic impact crater
+    Region("lonar", "nasadem", (76.44, 19.92, 76.58, 20.04), stride_km=2.5),  # basalt impact crater
+    Region("saririaky", "nasadem", (46.0, -23.7, 46.25, -23.42), stride_km=5),  # anorthosite massif
+    Region("white_sands", "nasadem", (-106.45, 32.7, -105.95, 33.0), stride_km=5),  # gypsum dunes
+    Region("sverrefjell", "copdem", (13.05, 79.35, 13.6, 79.5), stride_km=2.5),  # Arctic volcano
 ]
 
 
@@ -120,8 +134,8 @@ def write_regions_csv(regions: list[Region]) -> None:
     ).to_csv(DATA_DIR / "regions.csv", index=False)
 
 
-def grid_centres(bbox) -> list[tuple[float, float]]:
-    """Centres (lat, lon) of non-overlapping 10 km patches lying inside the bbox (row-major, N->S)."""
+def grid_centres(bbox, stride_km: float = PATCH_SIZE_M / 1000) -> list[tuple[float, float]]:
+    """Centres (lat, lon) of 10 km patches (non-overlapping at the default stride) lying inside the bbox (row-major, N->S)."""
     w, s, e, n = bbox
     lat0, lon0 = (s + n) / 2, (w + e) / 2
     crs = aeqd_crs(lat0, lon0, "earth")
@@ -136,8 +150,9 @@ def grid_centres(bbox) -> list[tuple[float, float]]:
     _, yt = to_xy(w + t * (e - w), [n] * 11)
     x_min, x_max, y_min, y_max = xl.max(), xr.min(), yb.max(), yt.min()
     half = PATCH_SIZE_M / 2
-    xs = np.arange(x_min + half, x_max - half + 1e-6, PATCH_SIZE_M)
-    ys = np.arange(y_max - half, y_min + half - 1e-6, -PATCH_SIZE_M)  # north first
+    step = stride_km * 1000
+    xs = np.arange(x_min + half, x_max - half + 1e-6, step)
+    ys = np.arange(y_max - half, y_min + half - 1e-6, -step)  # north first
     px, py = np.meshgrid(xs, ys)
     lon, lat = warp_transform(crs, "EPSG:4326", px.ravel().tolist(), py.ravel().tolist())
     return list(zip(lat, lon))
@@ -185,7 +200,7 @@ def process_region(region: Region, mosaic: Path) -> tuple[list[dict], Counter]:
     EARTH_PATCH_DIR.mkdir(parents=True, exist_ok=True)
     rows = []
     with rasterio.open(mosaic) as src:
-        for i, (lat, lon) in enumerate(grid_centres(region.bbox)):
+        for i, (lat, lon) in enumerate(grid_centres(region.bbox, region.stride_km)):
             patch = extract_patch(src, lat, lon, "earth", nodata=NODATA[region.dem])
             if patch is None:
                 continue
@@ -244,7 +259,7 @@ def main() -> None:
 
     new_rows = []
     for r, (rows, reasons) in zip(todo, results):
-        total = len(grid_centres(r.bbox))
+        total = len(grid_centres(r.bbox, r.stride_km))
         logging.info("%s: %d/%d patches kept; rejected: %s", r.slug, len(rows), total, dict(reasons) or "none")
         new_rows += rows
     new = pd.DataFrame(new_rows, columns=RECORD_COLUMNS)

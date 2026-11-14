@@ -457,7 +457,7 @@ for the terrain\-feature fields.
 |---|---|
 | `config.py` | Geometry, nodata/scale, feature names, record columns, data paths (incl. LOLA) |
 | `0_download_earth.py` | NASADEM / Copernicus DEM tile download (`--dem nasadem\|copdem`) |
-| `1_build_index.py` | Earth index: 47 regions → 10 km grid → patches → features → `data/earth_index.csv`, `data/regions.csv`, `data/patches/earth_npz/{region}.npz` |
+| `1_build_index.py` | Earth index: 59 regions → 10 km grid → patches → features → `data/earth_index.csv`, `data/regions.csv`, `data/patches/earth_npz/{region}.npz` |
 | `1b_build_moon_index.py` | Moon index: LOLA sites → `data/moon_index.csv`, `data/patches/moon/*.npy` |
 | `2_find_analogs.py` | CLI: Moon site or lat/lon → top-K Earth analogs → `outputs/latest_query.json` |
 | `3_plot_match.py` | CLI: Moon \| Earth comparison plot → `outputs/analog_comparison.png` |
@@ -471,7 +471,7 @@ for the terrain\-feature fields.
 | `data/fake/` | Synthetic Earth/Moon CSVs for development |
 | `docs/` | `CONTRACT.md` (source of truth), per-person plans, DEM cross-check |
 
-Committed data: Earth index (**3884 patches, 47 regions**: 42 NASADEM + 5 COPDEM, 8 validation regions flagged in `regions.csv`),
+Committed data: Earth index (**4269 patches, 59 regions**: 50 NASADEM + 9 COPDEM; 12 exploratory regions with overlapping-patch sampling (`stride_km`), 8 validation regions flagged in `regions.csv`),
 Moon index (18 sites: Apollo, maria, highlands, craters, polar), and per-region Earth patch archives (~88 MB total, ≤3 MB each).
 Raw DEM tiles and LOLA rasters are not committed. **Not implemented yet:** Streamlit app (`app.py`).
 
@@ -969,7 +969,7 @@ The initial MVP focuses specifically on the challenge's **terrain and topography
 
 **Early prototype / proof of concept.**
 
-Working end to end from the command line: Earth index (47 regions) and Moon index (18 sites) → scoring → top-K analogs → comparison plot.
+Working end to end from the command line: Earth index (59 regions) and Moon index (18 sites) → scoring → top-K analogs → comparison plot.
 Still to do: Streamlit app, README limitations section, clean-clone test.
 
 Known limitations: patches come from a hand-picked set of Earth regions (not global coverage); only elevation-derived
