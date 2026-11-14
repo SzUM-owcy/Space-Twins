@@ -1,4 +1,5 @@
 """Patch extraction shared by Earth and Moon (CONTRACT §2)."""
+import logging
 from typing import Literal
 
 import numpy as np
@@ -10,10 +11,11 @@ from rasterio.windows import Window
 
 from config import GRID_N, MOON_RADIUS_M, PATCH_SIZE_M, PIXEL_SIZE_M
 
+log = logging.getLogger(__name__)  # one DEBUG line with the reason per rejected patch
 HALF = PATCH_SIZE_M / 2
 MARGIN_PX = 4
 MAX_ZERO_HEIGHT_FRAC = 0.05  # Earth water rule, source pixels
-MAX_ZERO_SLOPE_FRAC = 0.20  # Earth water rule, interior pixels
+MAX_ZERO_SLOPE_FRAC = 0.995  # Earth water rule, interior pixels (0.20 rejected real Uyuni salt flat, see CONTRACT §2 pt 7)
 
 
 def aeqd_crs(lat: float, lon: float, body: str) -> CRS:
@@ -64,6 +66,7 @@ def extract_patch(
     c0, c1 = int(np.floor(min(cols))), int(np.ceil(max(cols)))
     r0, r1 = int(np.floor(min(rows))), int(np.ceil(max(rows)))
     if c0 < 0 or r0 < 0 or c1 > src.width or r1 > src.height:
+        log.debug("reject: off_raster")
         return None
 
     mc0, mr0 = max(c0 - MARGIN_PX, 0), max(r0 - MARGIN_PX, 0)
@@ -73,8 +76,10 @@ def extract_patch(
 
     inner = raw[r0 - mr0 : r1 - mr0, c0 - mc0 : c1 - mc0]
     if nodata is not None and np.any(inner == nodata):
+        log.debug("reject: nodata")
         return None
     if body == "earth" and np.mean(inner == 0) > MAX_ZERO_HEIGHT_FRAC:
+        log.debug("reject: water_zero_height")
         return None
 
     if nodata is not None:
@@ -94,7 +99,9 @@ def extract_patch(
         resampling=Resampling.average,
     )
     if not np.all(np.isfinite(dst)):
+        log.debug("reject: non_finite")
         return None
     if body == "earth" and _zero_slope_fraction(dst) > MAX_ZERO_SLOPE_FRAC:
+        log.debug("reject: water_zero_slope")
         return None
     return dst

@@ -15,6 +15,17 @@ The first version deliberately focuses **only on terrain morphology**. The goal 
 
 ---
 
+
+Event website: https://www.spaceappschallenge.org/2026/local-events/poznan
+
+Topic and useful datasets: https://www.spaceappschallenge.org/2026/challenges/permanent-moon-base-locations-and-mars/?tab=resources
+
+Judging criteria: https://www.spaceappschallenge.org/resources/judging-awards-guide/
+
+
+
+---
+
 ## 🎯 Project Objective
 
 The application will:
