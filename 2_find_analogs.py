@@ -17,6 +17,7 @@ from config import (
     COMPOSITION_EARTH_LITHOLOGY_PATH,
     COMPOSITION_EARTH_MINERALS_PATH,
     COMPOSITION_EARTH_PATH,
+    PRACTICALITY_PATH,
     COMPOSITION_MOON_PATH,
     ILLUM_EARTH_PATH,
     ILLUM_MOON_PATH,
@@ -29,6 +30,7 @@ from config import (
     W_THERMAL_DEFAULT,
 )
 from src.morphometry import FEATURE_NAMES
+from src.practicality import practicality_blocks
 from src.query import find_analogs, moon_features_for, rank_stability
 
 EARTH_INDEX = DATA_DIR / "earth_index.csv"
@@ -52,6 +54,7 @@ def parse_args() -> argparse.Namespace:
     src.add_argument("--lat", type=float, help="szerokość dowolnego punktu (wymaga --lon)")
     p.add_argument("--lon", type=float, help="długość dowolnego punktu, wschodnia dodatnia")
     p.add_argument("--top-k", type=int, default=5)
+    p.add_argument("--practicality", action="store_true", help="dołącz bloki practicality/constraints (nie zmienia rankingu naukowego)")
     p.add_argument("--w-slope", type=float, default=0.5, help="waga nachyleń w [0, 1] (reszta: kształt)")
     p.add_argument(
         "--max-per-region", type=int, default=1,
@@ -215,6 +218,12 @@ def main() -> None:
     except ValueError as err:
         sys.exit(f"Błąd: {err}")
 
+    records = json.loads(result.to_json(orient="records"))
+    if args.practicality and PRACTICALITY_PATH.exists():
+        blocks = practicality_blocks(pd.read_csv(PRACTICALITY_PATH), result["patch_id"], result["total_distance"])
+        for rec in records:
+            rec.update(blocks.get(rec["patch_id"], {}))
+
     payload = {
         "moon": moon,
         "w_slope": args.w_slope,
@@ -229,7 +238,7 @@ def main() -> None:
         "top_k": args.top_k,
         "max_per_region": args.max_per_region or None,
         "out_of_range": result.attrs["out_of_range"],
-        "results": json.loads(result.to_json(orient="records")),
+        "results": records,
     }
     OUTPUT_DIR.mkdir(exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
