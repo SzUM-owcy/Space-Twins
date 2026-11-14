@@ -32,6 +32,57 @@ The result is an **explainable terrain similarity ranking**, not a prediction of
 
 ---
 
+## Setup with `uv`
+
+This project uses **Python 3.12+** and `uv`.
+
+### Create the environment
+
+```bash
+uv venv --python 3.12
+```
+
+### Install dependencies
+
+```bash
+uv add numpy rasterio \
+  --default-index https://pypi.org/simple
+```
+
+Install development dependencies:
+
+```bash
+uv add --dev pytest \
+  --default-index https://pypi.org/simple
+```
+
+### Install dependencies after cloning
+
+```bash
+uv sync \
+  --default-index https://pypi.org/simple
+```
+
+### Run Python
+
+```bash
+uv run \
+  --default-index https://pypi.org/simple \
+  python src/prepare_earth_data.py
+```
+
+### Run tests
+
+```bash
+uv run \
+  --default-index https://pypi.org/simple \
+  pytest
+```
+
+Dependencies are stored in `pyproject.toml` and locked in `uv.lock`.
+
+---------
+
 # 🛰️ Initial Datasets
 
 The MVP intentionally uses only **two datasets**.
