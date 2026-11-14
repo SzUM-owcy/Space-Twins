@@ -106,3 +106,27 @@ def moon_raster_median(lat: float, lon: float, src: rasterio.DatasetReader) -> f
         block[block == src.nodata] = np.nan
     block = block[np.isfinite(block)]
     return float(np.median(block)) if block.size else float("nan")
+
+
+def moon_minerals_for(site_id: str | None, lat: float, lon: float) -> dict[str, float] | None:
+    """Diviner mineral fractions of a Moon patch: from the side table for indexed sites, else live from the rasters
+    when they are already on disk (no 600 MB download at query time). ``None`` beyond +-70 deg or without data."""
+    import pandas as pd
+
+    from config import COMPOSITION_DIR, COMPOSITION_MINERAL_MAPS, COMPOSITION_MOON_MINERALS_PATH
+
+    if site_id is not None:
+        if not COMPOSITION_MOON_MINERALS_PATH.exists():
+            return None
+        table = pd.read_csv(COMPOSITION_MOON_MINERALS_PATH).set_index("patch_id")
+        if site_id not in table.index or table.loc[site_id].isna().any():
+            return None
+        return {k: float(v) for k, v in table.loc[site_id].items()}
+    paths = {name: COMPOSITION_DIR / fname for name, fname in COMPOSITION_MINERAL_MAPS.items()}
+    if abs(lat) > COMPOSITION_CF_MAX_ABS_LAT or not all(p.exists() for p in paths.values()):
+        return None
+    out = {}
+    for name, path in paths.items():
+        with rasterio.open(path) as ds:
+            out[f"{name}_fraction"] = moon_raster_median(lat, lon, ds)
+    return out if all(np.isfinite(v) for v in out.values()) else None

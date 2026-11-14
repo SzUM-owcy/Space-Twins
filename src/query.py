@@ -108,7 +108,7 @@ def moon_features_for(
 
 THERMAL_RESULT_COLUMNS = ["terrain_distance", "thermal_distance", "thermal_status"]
 ILLUM_RESULT_COLUMNS = ["illumination_distance", "illumination_status"]
-COMPOSITION_RESULT_COLUMNS = ["composition_distance", "composition_status", "composition_confidence", "earth_mafic_felsic_percentile"]
+COMPOSITION_RESULT_COLUMNS = ["composition_distance", "composition_status", "composition_confidence", "composition_source", "earth_mafic_felsic_percentile"]
 QUALITY_COLUMNS = ["terrain_quality", "thermal_quality", "illumination_quality", "composition_quality"]
 # Etykieta składnika wg odległości (skala z-score): < 0.5 dobre, < 1.0 umiarkowane, dalej słabe.
 QUALITY_GOOD_MAX, QUALITY_MODERATE_MAX = 0.5, 1.0
@@ -149,6 +149,8 @@ def _add_components(
     moon_composition: float | None = None,
     earth_composition: pd.DataFrame | None = None,
     w_composition: float = 0.0,
+    moon_minerals: Mapping[str, float] | None = None,
+    earth_minerals: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Dodaj składniki termiczny i oświetleniowy; połącz z terenowym i sortuj po nowej sumie.
 
@@ -178,7 +180,23 @@ def _add_components(
             scale = 1.0 / std if np.isfinite(std) and std > 0 else 1.0
         dist = _component_distance(ranked, moon_illumination, lookup, scale)
         add("illumination", w_illum, dist.clip(upper=OUT_OF_RANGE_Z))
-    if w_composition > 0.0:
+    aster_ready = earth_composition is not None and bool((earth_composition["composition_status"] == "ok").any())
+    if w_composition > 0.0 and not aster_ready and earth_minerals is not None:
+        # No Earth ASTER table: the composition component falls back to the Moon-vs-Earth mineral mix (Diviner vs
+        # lithology-based estimate). Same weight, same z-like scale (distance / std over Earth), flagged as low confidence.
+        from src.minerals import mineral_distance, normalize_moon_minerals
+
+        moon_norm = normalize_moon_minerals(dict(moon_minerals)) if moon_minerals else None
+        by_id = earth_minerals.set_index("patch_id")
+        raw = pd.Series([mineral_distance(moon_norm, r) for _, r in by_id.iterrows()], index=by_id.index)
+        std = float(raw.std())
+        scale = 1.0 / std if np.isfinite(std) and std > 0 else 1.0
+        dist = (ranked["patch_id"].map(raw).astype(float) * scale).clip(upper=OUT_OF_RANGE_Z)
+        add("composition", w_composition, dist)
+        ranked["composition_source"] = "lithology_minerals"
+        ranked["composition_confidence"] = np.where(dist.notna(), "low_lithology_estimate", None)
+        ranked["mineral_distance"] = ranked["patch_id"].map(raw)
+    elif w_composition > 0.0:
         lookup, scale = None, 1.0
         if earth_composition is not None:
             valid = earth_composition[earth_composition["composition_status"] == "ok"]
@@ -214,6 +232,8 @@ def find_analogs(
     earth_composition: pd.DataFrame | None = None,
     w_composition: float = 0.0,
     earth_lithology: pd.DataFrame | None = None,
+    moon_minerals: Mapping[str, float] | None = None,
+    earth_minerals: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Najbardziej podobne łatki Ziemi do łatki Księżyca (mniejsza odległość = większe podobieństwo).
 
@@ -259,7 +279,7 @@ def find_analogs(
         ranked = _add_components(
             ranked, moon_thermal_percentile, earth_thermal, w_thermal,
             moon_illumination, earth_illumination, w_illum,
-            moon_composition, earth_composition, w_composition,
+            moon_composition, earth_composition, w_composition, moon_minerals, earth_minerals,
         )
 
     if max_per_region is not None:
@@ -277,6 +297,20 @@ def find_analogs(
         result["mixed_lithology_flag"] = result["patch_id"].map(by_id["mixed_lithology_flag"]).map(
             lambda v: None if pd.isna(v) else bool(v)
         )
+
+    if earth_minerals is not None:
+        from src.minerals import mineral_distance, normalize_moon_minerals
+
+        moon_norm = normalize_moon_minerals(dict(moon_minerals)) if moon_minerals else None
+        by_id = earth_minerals.set_index("patch_id")
+        rows = by_id.reindex(result["patch_id"])
+        for col in ("earth_plagioclase_fraction", "earth_pyroxene_fraction", "earth_olivine_fraction", "earth_other_fraction"):
+            result[col] = rows[col].to_numpy()
+        result["earth_mineral_status"] = rows["earth_mineral_status"].to_numpy()
+        if "mineral_distance" not in result.columns:
+            result["mineral_distance"] = [mineral_distance(moon_norm, r) for _, r in rows.iterrows()]
+        if moon_norm:
+            result.attrs["moon_minerals"] = moon_norm
 
     z_moon = transform(moon_features, scaler)[0]
     result.attrs["out_of_range"] = [

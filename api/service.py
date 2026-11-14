@@ -14,6 +14,7 @@ from config import (
     DATA_DIR,
     ILLUM_EARTH_PATH,
     COMPOSITION_EARTH_LITHOLOGY_PATH,
+    COMPOSITION_EARTH_MINERALS_PATH,
     COMPOSITION_EARTH_PATH,
     COMPOSITION_MOON_PATH,
     ILLUM_MOON_PATH,
@@ -292,6 +293,9 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
     earth = earth_index()
     moon_thermal = _moon_thermal(site_id, lat, lon) if req.w_thermal > 0 else None
     moon_illum = _moon_illumination(site_id, lat, lon) if req.w_illum > 0 else None
+    from src.moon_composition import moon_minerals_for
+
+    moon_minerals = moon_minerals_for(site_id, lat, lon)
     moon_comp, moon_comp_status = _moon_composition(site_id, lat, lon) if req.w_composition > 0 else (None, None)
     find_kwargs = dict(
         w_slope=req.w_slope, max_per_region=req.max_per_region,
@@ -299,6 +303,7 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
         moon_illumination=moon_illum, earth_illumination=_table(ILLUM_EARTH_PATH), w_illum=req.w_illum,
         moon_composition=moon_comp, earth_composition=_table(COMPOSITION_EARTH_PATH), w_composition=req.w_composition,
         earth_lithology=_table(COMPOSITION_EARTH_LITHOLOGY_PATH),
+        earth_minerals=_table(COMPOSITION_EARTH_MINERALS_PATH), moon_minerals=moon_minerals,
         feature_weights=req.feature_weights,
     )
     result = find_analogs(features, earth, top_k=req.top_k, **find_kwargs)
@@ -329,7 +334,14 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
                 composition_status=_opt(row, "composition_status"),
                 composition_quality=_opt(row, "composition_quality"),
                 composition_confidence=_opt(row, "composition_confidence"),
+                composition_source=_opt(row, "composition_source"),
                 earth_mafic_felsic_percentile=_opt(row, "earth_mafic_felsic_percentile"),
+                earth_plagioclase_fraction=_opt(row, "earth_plagioclase_fraction"),
+                earth_pyroxene_fraction=_opt(row, "earth_pyroxene_fraction"),
+                earth_olivine_fraction=_opt(row, "earth_olivine_fraction"),
+                earth_other_fraction=_opt(row, "earth_other_fraction"),
+                earth_mineral_status=_opt(row, "earth_mineral_status"),
+                mineral_distance=_opt(row, "mineral_distance"),
                 dominant_lithology=_opt(row, "dominant_lithology"),
                 mixed_lithology_flag=_opt(row, "mixed_lithology_flag"),
                 terrain_quality=_opt(row, "terrain_quality"),
@@ -352,6 +364,7 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
             solar_visibility_fraction=moon_illum,
             mafic_felsic_percentile=moon_comp,
             composition_status=moon_comp_status,
+            minerals=None if moon_minerals is None else {k.replace("_fraction", ""): float(v) for k, v in moon_minerals.items()},
         ),
         w_slope=req.w_slope,
         w_thermal=req.w_thermal,

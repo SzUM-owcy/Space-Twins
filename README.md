@@ -209,6 +209,7 @@ uv run --frozen python 1c_build_thermal.py moon-polar
 uv run --frozen python 1e_build_composition.py moon
 uv run --frozen python 1e_build_composition.py minerals        # Moon mineral fractions + raw-vs-corrected CF comparison
 uv run --frozen python 1e_build_composition.py lithology       # Earth Macrostrat lithology (no login, resumable)
+uv run --frozen python 1e_build_composition.py earth-minerals  # estimated Earth plagioclase/pyroxene/olivine from the lithology
 uv run --frozen python 1e_build_composition.py earth
 uv run --frozen python 1e_build_composition.py validate        # outputs/composition_validation.{csv,png}
 uv run --frozen python 1e_build_composition.py finalize        # versioned references + percentiles
@@ -254,7 +255,7 @@ as `|Δ percentile| / std(Earth)`, capped at 3. Illumination distance is
 | `src/raster_io.py`, `src/morphometry.py` | Shared patch extraction and the 12 terrain features |
 | `src/scoring.py`, `src/query.py` | Scaling, distances, `find_analogs`, live Moon extraction |
 | `src/thermal.py`, `src/earth_temperature.py`, `src/moon_temperature.py`, `src/moon_polar_thermal.py` | Thermal feature |
-| `src/composition.py`, `src/earth_composition.py`, `src/earth_lithology.py`, `src/moon_composition.py` | Composition proxy |
+| `src/composition.py`, `src/earth_composition.py`, `src/earth_lithology.py`, `src/minerals.py`, `src/moon_composition.py` | Composition proxy |
 | `src/illumination.py`, `src/earth_solar.py`, `src/moon_solar.py`, `src/illumination_live.py` | Illumination feature |
 | `src/contracts.py`, `src/plotting.py` | CSV schema validation, plots |
 | `dem_crosscheck.py` | NASADEM vs Copernicus DEM comparison (`docs/dem_crosscheck.md`) |
@@ -397,6 +398,15 @@ breaks down), not as a single "Moon-likeness" score.
   do not enter scoring. The lithology table covers all 5009 Earth patches (3×3 sample points each), but only about half have a mapped
   unit (the rest are `unknown`, e.g. the Sahara, Greenland and India regions); it is not a mineralogy. It appears in
   query results as `dominant_lithology` and `mixed_lithology_flag` (API: same names) and never changes the score.
+  **Mineral comparison (diagnostic):** `data/composition_earth_minerals.csv` estimates Earth plagioclase / pyroxene /
+  olivine from the lithology class (typical modal compositions, `src/minerals.py`; quartz, carbonate and other minerals
+  count as "other") and each result carries `earth_*_fraction` and `mineral_distance` against the Moon's Diviner
+  fractions (0 = same mix, 1 = disjoint; "other" counts as a mismatch). It is class-level and approximate: only 2406 of
+  5009 patches have it, basalt gets one fixed mix, and no anorthosite is mapped, so mare sites match well (distance
+  0.05–0.23) while highland and fresh-crater sites match poorly (0.37–0.55). It never changes the score unless the Earth ASTER table is missing: then `w_composition` falls back to this
+  mineral distance (`composition_source = lithology_minerals`, confidence `low_lithology_estimate`, scaled like the other
+  components). Unmapped patches and the polar Moon drop out of that component, so patches *without* a mapped unit are
+  not penalised and can outrank mapped ones that match poorly: treat it as a hint, not a ranking driver.
 - **Illumination:** geometric Sun visibility only (no atmosphere, clouds or insolation). On Earth the 20 km
   window (limited by the regional DEM mosaics) truncates horizons near region edges; the Moon uses 40 km, which
   the polar validation showed is needed for large craters. Polar sites use the 118 m global LOLA product, which

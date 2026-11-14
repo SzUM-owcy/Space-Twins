@@ -15,6 +15,7 @@ import pandas as pd
 from config import (
     DATA_DIR,
     COMPOSITION_EARTH_LITHOLOGY_PATH,
+    COMPOSITION_EARTH_MINERALS_PATH,
     COMPOSITION_EARTH_PATH,
     COMPOSITION_MOON_PATH,
     ILLUM_EARTH_PATH,
@@ -185,6 +186,9 @@ def main() -> None:
         illum = moon_illumination(args, moon)
         earth_illum = pd.read_csv(ILLUM_EARTH_PATH) if ILLUM_EARTH_PATH.exists() else None
         comp = moon_composition_info(args, moon) if args.w_composition > 0 else moon_composition_info_empty()
+        from src.moon_composition import moon_minerals_for
+
+        moon_minerals = moon_minerals_for(args.site and moon["patch_id"], args.lat or 0.0, args.lon or 0.0)
         earth_comp = pd.read_csv(COMPOSITION_EARTH_PATH) if COMPOSITION_EARTH_PATH.exists() else None
         earth_index = pd.read_csv(EARTH_INDEX)
         find_kwargs = dict(
@@ -200,6 +204,8 @@ def main() -> None:
             earth_composition=earth_comp,
             w_composition=args.w_composition,
             earth_lithology=pd.read_csv(COMPOSITION_EARTH_LITHOLOGY_PATH) if COMPOSITION_EARTH_LITHOLOGY_PATH.exists() else None,
+            earth_minerals=pd.read_csv(COMPOSITION_EARTH_MINERALS_PATH) if COMPOSITION_EARTH_MINERALS_PATH.exists() else None,
+            moon_minerals=moon_minerals,
             feature_weights=args.feature_weights,
         )
         result = find_analogs(moon["features"], earth_index, top_k=args.top_k, **find_kwargs)
@@ -219,6 +225,7 @@ def main() -> None:
         "moon_illumination": illum,
         "w_composition": args.w_composition,
         "moon_composition": comp,
+        "moon_minerals": moon_minerals,
         "top_k": args.top_k,
         "max_per_region": args.max_per_region or None,
         "out_of_range": result.attrs["out_of_range"],

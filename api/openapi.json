@@ -43,6 +43,22 @@
             ],
             "title": "Composition Quality"
           },
+          "composition_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "aster_mi",
+                  "lithology_minerals"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Źródło składnika składu: lithology_minerals = zapas, gdy brak tabeli ASTER (mieszanka minerałów Diviner vs szacunek z litologii Macrostrat, confidence low_lithology_estimate).",
+            "title": "Composition Source"
+          },
           "composition_status": {
             "anyOf": [
               {
@@ -80,6 +96,67 @@
               }
             ],
             "title": "Earth Mafic Felsic Percentile"
+          },
+          "earth_mineral_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "estimated",
+                  "no_lithology"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earth Mineral Status"
+          },
+          "earth_olivine_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earth Olivine Fraction"
+          },
+          "earth_other_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Minerały bez odpowiednika na Księżycu (kwarc, skalenie K, węglany, ewaporaty, iły).",
+            "title": "Earth Other Fraction"
+          },
+          "earth_plagioclase_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Szacunek (litologia Macrostrat x typowy skład modalny), nie pomiar.",
+            "title": "Earth Plagioclase Fraction"
+          },
+          "earth_pyroxene_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earth Pyroxene Fraction"
           },
           "features": {
             "additionalProperties": {
@@ -137,6 +214,18 @@
           "lon": {
             "title": "Lon",
             "type": "number"
+          },
+          "mineral_distance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Diagnostyka (poza wynikiem): połowa odległości L1 między składem Księżyca (Diviner: plagioklaz/piroksen/oliwin) i Ziemi (szacunek; minerały bez odpowiednika na Księżycu liczą się jako niezgodność); 0 = identyczne, 1 = rozłączne; null = brak danych.",
+            "title": "Mineral Distance"
           },
           "mixed_lithology_flag": {
             "anyOf": [
@@ -831,6 +920,21 @@
             ],
             "description": "Percentyl składu mafic-felsic (0 = felsic, 1 = mafic) względem Księżyca albo null (np. bieguny).",
             "title": "Mafic Felsic Percentile"
+          },
+          "minerals": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Udziały plagioklaz/piroksen/oliwin łatki Księżyca (Diviner, ±70°); null poza zasięgiem.",
+            "title": "Minerals"
           },
           "name": {
             "title": "Name",

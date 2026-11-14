@@ -27,6 +27,7 @@ from config import (
     COMPOSITION_CF_RAW_URL,
     COMPOSITION_DIR,
     COMPOSITION_EARTH_LITHOLOGY_PATH,
+    COMPOSITION_EARTH_MINERALS_PATH,
     COMPOSITION_MINERAL_MAPS,
     COMPOSITION_MINERAL_URL,
     COMPOSITION_MOON_MINERALS_PATH,
@@ -130,6 +131,16 @@ def build_earth_lithology() -> None:
         done = pd.concat([done, rows], ignore_index=True)
         done.to_csv(COMPOSITION_EARTH_LITHOLOGY_PATH, index=False)
         log.info("lithology: %d/%d (unmapped in chunk: %d)", min(start + 500, len(todo)), len(todo), failed.sum())
+
+
+def build_earth_minerals() -> None:
+    """Estimated Earth plagioclase / pyroxene / olivine fractions from the Macrostrat lithology table."""
+    from src.minerals import earth_mineral_estimate
+
+    table = earth_mineral_estimate(pd.read_csv(COMPOSITION_EARTH_LITHOLOGY_PATH))
+    table.to_csv(COMPOSITION_EARTH_MINERALS_PATH, index=False)
+    log.info("earth minerals: %d estimated, %d without lithology", (table["earth_mineral_status"] == "estimated").sum(),
+             (table["earth_mineral_status"] != "estimated").sum())
 
 
 def build_earth(regions: list[str] | None) -> None:
@@ -280,12 +291,14 @@ def finalize(earth_dir: str | None) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("step", choices=["moon", "minerals", "lithology", "earth", "validate", "finalize"])
+    parser.add_argument("step", choices=["moon", "minerals", "lithology", "earth-minerals", "earth", "validate", "finalize"])
     parser.add_argument("--regions", default=None, help="comma-separated Earth regions (re-does them)")
     parser.add_argument("--earth-direction", choices=["higher_is_mafic", "lower_is_mafic"], default=None)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-    if args.step == "lithology":
+    if args.step == "earth-minerals":
+        build_earth_minerals()
+    elif args.step == "lithology":
         build_earth_lithology()
     elif args.step == "minerals":
         build_moon_diagnostics()
