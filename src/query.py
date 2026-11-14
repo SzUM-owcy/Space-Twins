@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Mapping
 
+import numpy as np
 import pandas as pd
+import rasterio
 
-from src.morphometry import FEATURE_NAMES
+from config import LOLA_NODATA, LOLA_SCALE, PIXEL_SIZE_M
+from src.morphometry import FEATURE_NAMES, extract_patch_features
+from src.raster_io import extract_patch
 from src.scoring import distances, fit_scaler, transform
+
+# Produkt globalny LOLA 118 m pokrywa |lat| <= 75°; pas 75-80° pomijamy (CONTRACT §2).
+# Produkt polarny (lat <= -80°) jeszcze nie jest podłączony.
+GLOBAL_MAX_ABS_LAT = 75.0
+# Sanity check wysokości LOLA po zastosowaniu skali (CONTRACT §2 pkt 8).
+LOLA_MIN_M, LOLA_MAX_M = -9150.0, 10800.0
 
 RESULT_COLUMNS = [
     "rank",
@@ -20,6 +31,48 @@ RESULT_COLUMNS = [
     "total_distance",
 ]
 OUT_OF_RANGE_Z = 3.0
+
+
+class PatchRejected(ValueError):
+    """Łatki nie da się wyciąć: szerokość poza produktem, nodata albo poza rastrem."""
+
+
+def extract_moon_patch(src: rasterio.DatasetReader, lat: float, lon: float) -> np.ndarray:
+    """Łatka 85x85 (metry, float64, północ u góry) z otwartego globalnego rastra LOLA.
+
+    ``PatchRejected`` dla szerokości poza zakresem produktu albo odrzuconej łatki;
+    zwykły ``ValueError``, gdy wysokości wychodzą poza zakres LOLA (zła skala rastra).
+    """
+    if not (-90.0 <= lat <= 90.0) or not np.isfinite(lat) or not np.isfinite(lon):
+        raise PatchRejected(f"niepoprawne współrzędne: lat={lat}, lon={lon}")
+    if abs(lat) > GLOBAL_MAX_ABS_LAT:
+        raise PatchRejected(
+            f"lat={lat}: produkt globalny 118 m pokrywa tylko |lat| <= {GLOBAL_MAX_ABS_LAT:g}° "
+            "(pas 75-80° nie jest obsługiwany, a produkt polarny nie jest jeszcze podłączony)"
+        )
+    lon = (lon + 180.0) % 360.0 - 180.0
+
+    patch = extract_patch(src, lat, lon, body="moon", nodata=LOLA_NODATA, scale=LOLA_SCALE)
+    if patch is None:
+        raise PatchRejected(f"({lat}, {lon}): łatka odrzucona (nodata albo poza rastrem)")
+    lo, hi = float(patch.min()), float(patch.max())
+    if lo < LOLA_MIN_M or hi > LOLA_MAX_M:
+        raise ValueError(
+            f"({lat}, {lon}): wysokości {lo:.0f}..{hi:.0f} m poza zakresem LOLA "
+            f"({LOLA_MIN_M:.0f}..{LOLA_MAX_M:.0f}) – sprawdź skalę"
+        )
+    return patch
+
+
+def moon_features_for(lat: float, lon: float, lola_path: str | Path) -> dict[str, float]:
+    """12 cech łatki 10x10 km wyciętej na żywo z globalnego rastra LOLA (np. dla UI).
+
+    Rzuca ``PatchRejected`` (podklasa ``ValueError``) dla pasa 75-80°, biegunów
+    i łatek odrzuconych.
+    """
+    with rasterio.open(lola_path) as src:
+        patch = extract_moon_patch(src, lat, lon)
+    return extract_patch_features(patch, PIXEL_SIZE_M)
 
 
 def find_analogs(
