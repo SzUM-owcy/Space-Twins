@@ -31,6 +31,15 @@ MOON_INDEX = DATA_DIR / "moon_index.csv"
 OUTPUT_PATH = OUTPUT_DIR / "latest_query.json"
 
 
+def parse_feature_weights(parser: argparse.ArgumentParser, text: str | None) -> dict | None:
+    if not text:
+        return None
+    try:
+        return {k.strip(): float(v) for k, v in (item.split("=") for item in text.split(","))}
+    except ValueError:
+        parser.error("--feature-weights: oczekiwano NAME=WARTOŚĆ,NAME=WARTOŚĆ")
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     src = p.add_mutually_exclusive_group(required=True)
@@ -51,7 +60,12 @@ def parse_args() -> argparse.Namespace:
         "--w-illum", type=float, default=W_ILLUM_DEFAULT,
         help="waga składnika oświetlenia w [0, 1] (0 = wyłączony); waga terenu = 1 - w_thermal - w_illum",
     )
+    p.add_argument(
+        "--feature-weights", default=None, metavar="NAME=W,...",
+        help="względne ważności cech terenu, np. slope_p50=3,rms_height=2 (pominięte = 1; zastępuje --w-slope)",
+    )
     args = p.parse_args()
+    args.feature_weights = parse_feature_weights(p, args.feature_weights)
     if args.w_thermal + args.w_illum > 1.0:
         p.error("--w-thermal + --w-illum musi być <= 1")
     if (args.lat is None) != (args.lon is None):
@@ -146,6 +160,7 @@ def main() -> None:
             moon_illumination=illum["solar_visibility_fraction"],
             earth_illumination=earth_illum,
             w_illum=args.w_illum,
+            feature_weights=args.feature_weights,
         )
     except ValueError as err:
         sys.exit(f"Błąd: {err}")
@@ -156,6 +171,7 @@ def main() -> None:
         "w_thermal": args.w_thermal,
         "moon_thermal": thermal,
         "w_illum": args.w_illum,
+        "feature_weights": args.feature_weights,
         "moon_illumination": illum,
         "top_k": args.top_k,
         "max_per_region": args.max_per_region or None,

@@ -175,6 +175,7 @@ def find_analogs(
     moon_illumination: float | None = None,
     earth_illumination: pd.DataFrame | None = None,
     w_illum: float = 0.0,
+    feature_weights: Mapping[str, float] | None = None,
 ) -> pd.DataFrame:
     """Najbardziej podobne łatki Ziemi do łatki Księżyca (mniejsza odległość = większe podobieństwo).
 
@@ -187,7 +188,8 @@ def find_analogs(
     łatki Ziemi), ``total_distance`` = odległość terenowa, a ``thermal_status`` = "missing".
     Analogicznie oświetlenie (``w_illum`` > 0): ``earth_illumination`` ma kolumny ``patch_id`` i
     ``solar_visibility_fraction``; odległość = |różnica| / std Ziemi (obcięta do 3). Waga terenu
-    to ``1 - w_thermal - w_illum``.
+    to ``1 - w_thermal - w_illum``. ``feature_weights``: względne ważności 12 cech terenu
+    (patrz ``scoring.distances``); zastępuje podział ``w_slope``.
     """
     if not 0.0 <= w_thermal <= 1.0:
         raise ValueError(f"w_thermal musi być w [0, 1], jest {w_thermal}")
@@ -204,7 +206,7 @@ def find_analogs(
             raise ValueError(f"earth_index nie ma kolumny {col!r}")
 
     scaler = fit_scaler(earth_index)
-    dist = distances(moon_features, earth_index, scaler, w_slope)
+    dist = distances(moon_features, earth_index, scaler, w_slope, feature_weights)
     ranked = pd.concat(
         [earth_index[["patch_id", "region", "center_lat", "center_lon"]], dist], axis=1
     ).sort_values("total_distance", kind="stable")

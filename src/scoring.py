@@ -73,13 +73,29 @@ def _rms(diff: np.ndarray, columns: list[str]) -> np.ndarray:
     return np.sqrt(np.mean(diff[:, idx] ** 2, axis=1))
 
 
+def _feature_weight_vector(weights: Mapping[str, float]) -> np.ndarray:
+    """Znormalizowany (suma = 1) wektor wag w kolejności FEATURE_NAMES."""
+    unknown = sorted(set(weights) - set(FEATURE_NAMES))
+    if unknown:
+        raise ValueError(f"nieznane cechy w feature_weights: {unknown}")
+    vec = np.array([float(weights.get(name, 1.0)) for name in FEATURE_NAMES])
+    if not np.all(np.isfinite(vec)) or np.any(vec < 0) or vec.sum() <= 0:
+        raise ValueError("wagi cech muszą być skończone, >= 0 i nie wszystkie zerowe")
+    return vec / vec.sum()
+
+
 def distances(
     moon_features: Mapping[str, float],
     earth_df: pd.DataFrame,
     scaler: Scaler,
     w_slope: float = 0.5,
+    feature_weights: Mapping[str, float] | None = None,
 ) -> pd.DataFrame:
     """Odległości jednej łatki Księżyca od każdej łatki Ziemi (indeks jak w ``earth_df``).
+
+    ``feature_weights`` (opcjonalnie): względne ważności pojedynczych cech; wtedy
+    total_distance = sqrt(sum(w_i * d_i^2) / sum(w_i)) i ``w_slope`` jest pomijane.
+    Cechy bez wpisu mają wagę 1.0; wagi muszą być >= 0 i nie wszystkie zerowe.
 
     slope_distance = sqrt(mean_slope((z_moon - z_earth)^2)),
     shape_distance = sqrt(mean_shape((z_moon - z_earth)^2)),
@@ -93,11 +109,14 @@ def distances(
 
     slope_distance = _rms(diff, SLOPE_FEATURES)
     shape_distance = _rms(diff, SHAPE_FEATURES)
+    total = w_slope * slope_distance + (1.0 - w_slope) * shape_distance
+    if feature_weights is not None:
+        total = np.sqrt((diff**2) @ _feature_weight_vector(feature_weights))
     return pd.DataFrame(
         {
             "slope_distance": slope_distance,
             "shape_distance": shape_distance,
-            "total_distance": w_slope * slope_distance + (1.0 - w_slope) * shape_distance,
+            "total_distance": total,
         },
         index=earth_df.index,
     )
