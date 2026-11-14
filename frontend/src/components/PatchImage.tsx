@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { drawPatch, PATCH_KM, type Body } from '../imagery'
-import { formatCoords } from '../sites'
+import PatchFrame from './PatchFrame'
 
 const SIZE = 900
 
@@ -35,29 +35,17 @@ export default function PatchImage({
   }, [body, lat, lon, attempt, matchMoon])
 
   return (
-    <figure className="patch" data-body={body} data-status={status}>
+    <PatchFrame
+      body={body}
+      title={title}
+      lat={lat}
+      lon={lon}
+      status={status}
+      loadingText="Fetching imagery"
+      errorText="Imagery is unavailable. Check your internet connection."
+      onRetry={() => setAttempt((n) => n + 1)}
+    >
       <canvas ref={canvasRef} width={SIZE} height={SIZE} role="img" aria-label={`${title}, ${PATCH_KM} by ${PATCH_KM} kilometres`} />
-      <figcaption className="patch-label">
-        <span className="patch-title">{title}</span>
-        <span className="patch-coords">{formatCoords(lat, lon)}</span>
-      </figcaption>
-      <span className="corner tl" />
-      <span className="corner tr" />
-      <span className="corner bl" />
-      <span className="corner br" />
-      <span className="scale">
-        <i />
-        {PATCH_KM / 5} km
-      </span>
-      {status === 'loading' && <span className="patch-state">Fetching imagery</span>}
-      {status === 'error' && (
-        <span className="patch-state">
-          Imagery is unavailable. Check your internet connection.
-          <button type="button" className="back" onClick={() => setAttempt((n) => n + 1)}>
-            Try again
-          </button>
-        </span>
-      )}
-    </figure>
+    </PatchFrame>
   )
 }

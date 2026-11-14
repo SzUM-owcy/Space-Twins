@@ -1,11 +1,22 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { loadEarthPatch } from '../api'
+import { RAMP_CSS, sharedRange } from '../terrain'
 import type { Analog } from '../types'
+import { usePatchGrid } from '../usePatchGrid'
 import PatchImage from './PatchImage'
+import TerrainMap from './TerrainMap'
 
-type Tab = { id: string; label: string }
+const Terrain3D = lazy(() => import('./Terrain3D'))
 
-// New comparisons (terrain, features) are added here as extra tabs.
-const TABS: Tab[] = [{ id: 'imagery', label: 'Imagery' }]
+const TABS = [
+  { id: 'imagery', label: 'Imagery' },
+  { id: 'terrain', label: 'Terrain' },
+  { id: 'terrain3d', label: '3D terrain' },
+] as const
+
+type TabId = (typeof TABS)[number]['id']
+
+const EXAGGERATIONS = [1, 2, 4]
 
 export default function CompareModal({
   moon,
@@ -14,7 +25,7 @@ export default function CompareModal({
   onSelectRank,
   onClose,
 }: {
-  moon: { name: string; lat: number; lon: number }
+  moon: { id: string; name: string; lat: number; lon: number }
   results: Analog[]
   activeRank: number
   onSelectRank: (rank: number) => void
@@ -22,8 +33,19 @@ export default function CompareModal({
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const analog = results.find((a) => a.rank === activeRank) ?? results[0]
-  const tab = TABS[0]
+  const [tab, setTab] = useState<TabId>('imagery')
   const [matched, setMatched] = useState(true)
+  const [exaggeration, setExaggeration] = useState(2)
+
+  const needsTerrain = tab !== 'imagery'
+  const moonGrid = usePatchGrid('moon', moon.id, needsTerrain)
+  const earthGrid = usePatchGrid('earth', analog?.patch_id ?? '', needsTerrain && !!analog)
+  const range = sharedRange(moonGrid.grid, earthGrid.grid)
+
+  useEffect(() => {
+    // Warm the cache so switching between matches does not wait on the network.
+    if (needsTerrain) results.forEach((a) => loadEarthPatch(a.patch_id).catch(() => undefined))
+  }, [needsTerrain, results])
 
   useEffect(() => {
     dialogRef.current?.focus()
@@ -41,14 +63,23 @@ export default function CompareModal({
 
   if (!analog) return null
 
+  const moonSide = { title: moon.name, lat: moon.lat, lon: moon.lon, state: moonGrid }
+  const earthSide = { title: analog.region_name, lat: analog.lat, lon: analog.lon, state: earthGrid }
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="compare-title" tabIndex={-1} ref={dialogRef}>
         <h2 id="compare-title" className="sr-only">
           {moon.name} compared with {analog.region_name}
         </h2>
-        <header className="modal-bar">
-          <ol className="picks" aria-label="Earth matches">
+        <div role="tablist" aria-orientation="vertical" className="rail">
+          {TABS.map((t) => (
+            <button key={t.id} role="tab" type="button" aria-selected={t.id === tab} onClick={() => setTab(t.id)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="modal-main">
+        <header className="modal-bar">          <ol className="picks" aria-label="Earth matches">
             {results.map((a) => (
               <li key={a.patch_id}>
                 <button type="button" className="pick" aria-current={a.rank === activeRank} onClick={() => onSelectRank(a.rank)}>
@@ -58,34 +89,63 @@ export default function CompareModal({
               </li>
             ))}
           </ol>
-          {TABS.length > 1 && (
-            <div role="tablist" className="tabs">
-              {TABS.map((t) => (
-                <button key={t.id} role="tab" type="button" aria-selected={t.id === tab.id}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
           <button type="button" className="modal-close" onClick={onClose}>
             Close
           </button>
         </header>
 
         <div className="modal-body">
-          <PatchImage body="moon" title={moon.name} lat={moon.lat} lon={moon.lon} />
-          <PatchImage body="earth" title={analog.region_name} lat={analog.lat} lon={analog.lon} matchMoon={matched} />
+          {tab === 'imagery' && (
+            <>
+              <PatchImage body="moon" title={moon.name} lat={moon.lat} lon={moon.lon} />
+              <PatchImage body="earth" title={analog.region_name} lat={analog.lat} lon={analog.lon} matchMoon={matched} />
+            </>
+          )}
+          {tab === 'terrain' && <TerrainMap moon={moonSide} earth={earthSide} range={range} />}
+          {tab === 'terrain3d' && (
+            <Suspense fallback={null}>
+              <Terrain3D moon={moonSide} earth={earthSide} range={range} exaggeration={exaggeration} />
+            </Suspense>
+          )}
         </div>
 
         <footer className="modal-foot">
-          <p className="sources">
-            Moon: NASA LRO camera. Earth: Esri, Maxar, Earthstar Geographics.
-            {matched ? ' Both at about 100 m per pixel.' : ' Earth in full detail.'}
-          </p>
-          <button type="button" className="modal-toggle" aria-pressed={!matched} onClick={() => setMatched((m) => !m)}>
-            Earth in full detail
-          </button>
+          {tab === 'imagery' ? (
+            <p className="sources">
+              Moon: NASA LRO camera. Earth: Esri, Maxar, Earthstar Geographics.
+              {matched ? ' Both at about 100 m per pixel.' : ' Earth in full detail.'}
+            </p>
+          ) : (
+            <div className="legend">
+              <span className="legend-bar" style={{ backgroundImage: RAMP_CSS }} />
+              <span className="legend-ticks">
+                <span>0 m</span>
+                <span>{Math.round(range).toLocaleString('en-US')} m</span>
+              </span>
+              <p className="sources">
+                {tab === 'terrain'
+                  ? 'Height above the lowest point of each patch, on one shared scale.'
+                  : 'Drag to rotate. Both views move together, on one shared height scale.'}
+              </p>
+            </div>
+          )}
+          {tab === 'imagery' && (
+            <button type="button" className="modal-toggle" aria-pressed={!matched} onClick={() => setMatched((m) => !m)}>
+              Earth in full detail
+            </button>
+          )}
+          {tab === 'terrain3d' && (
+            <div className="exag" role="group" aria-label="Height exaggeration">
+              <span>Heights</span>
+              {EXAGGERATIONS.map((x) => (
+                <button key={x} type="button" aria-pressed={x === exaggeration} onClick={() => setExaggeration(x)}>
+                  {x}×
+                </button>
+              ))}
+            </div>
+          )}
         </footer>
+        </div>
       </div>
     </div>
   )

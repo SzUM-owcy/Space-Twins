@@ -1,4 +1,4 @@
-import type { AnalogsResponse, MoonSite } from './types'
+import type { AnalogsResponse, MoonSite, PatchGrid } from './types'
 import sampleSites from './mocks/moon_sites.json'
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
@@ -17,6 +17,25 @@ export async function loadMoonSites(): Promise<SitesResult> {
 }
 
 const analogCache = new Map<string, AnalogsResponse>()
+
+const patchCache = new Map<string, Promise<PatchGrid>>()
+
+function fetchPatch(key: string, path: string): Promise<PatchGrid> {
+  let p = patchCache.get(key)
+  if (!p) {
+    p = fetch(`${API_BASE}/api/v1${path}`, { signal: AbortSignal.timeout(10000) }).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.json() as Promise<PatchGrid>
+    })
+    patchCache.set(key, p)
+    p.catch(() => patchCache.delete(key))
+  }
+  return p
+}
+
+export const loadMoonPatch = (siteId: string) => fetchPatch(`moon:${siteId}`, `/moon/patch?site_id=${encodeURIComponent(siteId)}`)
+
+export const loadEarthPatch = (patchId: string) => fetchPatch(`earth:${patchId}`, `/earth/patches/${encodeURIComponent(patchId)}`)
 
 // One result per region keeps the five pins spread across the globe.
 export async function loadAnalogs(siteId: string): Promise<AnalogsResponse> {
