@@ -137,7 +137,7 @@ export default function App() {
 
       {inPair && compareOpen && (
         <CompareModal
-          moon={{ name: selected.name, lat: selected.lat, lon: selected.lon }}
+          moon={{ id: selected.id, name: selected.name, lat: selected.lat, lon: selected.lon }}
           results={results}
           activeRank={activeRank}
           onSelectRank={setActiveRank}

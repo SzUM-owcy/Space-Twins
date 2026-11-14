@@ -23,3 +23,18 @@ export type AnalogsResponse = {
   out_of_range: string[]
   results: Analog[]
 }
+
+export type PatchGrid = {
+  patch_id: string | null
+  body: 'moon' | 'earth'
+  region: string | null
+  lat: number
+  lon: number
+  size_m: number
+  grid_n: number
+  pixel_size_m: number
+  min_m: number
+  max_m: number
+  /** heights_m[row][col]; row 0 is north, col 0 is west. */
+  heights_m: number[][]
+}
