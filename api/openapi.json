@@ -4,12 +4,119 @@
       "Analog": {
         "additionalProperties": false,
         "properties": {
+          "composition_confidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "high / medium / low / low_quartz_confounder (pewność proxy składu patch'a Ziemi).",
+            "title": "Composition Confidence"
+          },
+          "composition_distance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Distance"
+          },
+          "composition_quality": {
+            "anyOf": [
+              {
+                "enum": [
+                  "good",
+                  "moderate",
+                  "poor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Quality"
+          },
+          "composition_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Status"
+          },
+          "earth_mafic_felsic_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earth Mafic Felsic Percentile"
+          },
           "features": {
             "additionalProperties": {
               "type": "number"
             },
             "title": "Features",
             "type": "object"
+          },
+          "illumination_distance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Illumination Distance"
+          },
+          "illumination_quality": {
+            "anyOf": [
+              {
+                "enum": [
+                  "good",
+                  "moderate",
+                  "poor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Illumination Quality"
+          },
+          "illumination_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Illumination Status"
           },
           "lat": {
             "title": "Lat",
@@ -51,6 +158,89 @@
             "title": "Source",
             "type": "string"
           },
+          "stability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek przebiegów z szumem (stability_runs), w których łatka zostaje w top-K; null = nie liczone.",
+            "title": "Stability"
+          },
+          "terrain_distance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tylko teren; ustawione, gdy w_thermal lub w_illum > 0.",
+            "title": "Terrain Distance"
+          },
+          "terrain_quality": {
+            "anyOf": [
+              {
+                "enum": [
+                  "good",
+                  "moderate",
+                  "poor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etykieta składnika (odległość < 0.5 good, < 1.0 moderate, dalej poor); ustawiona razem z terrain_distance.",
+            "title": "Terrain Quality"
+          },
+          "thermal_distance": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thermal Distance"
+          },
+          "thermal_quality": {
+            "anyOf": [
+              {
+                "enum": [
+                  "good",
+                  "moderate",
+                  "poor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thermal Quality"
+          },
+          "thermal_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "missing"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thermal Status"
+          },
           "total_distance": {
             "description": "Mniejsza = bardziej podobny teren.",
             "title": "Total Distance",
@@ -84,6 +274,28 @@
       "AnalogsRequest": {
         "additionalProperties": false,
         "properties": {
+          "feature_weights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Względne ważności 12 cech terenu (klucze = nazwy z /meta -> features, wartości >= 0; pominięte = 1). Zastępuje podział w_slope. null = domyślny schemat w_slope.",
+            "examples": [
+              {
+                "elev_skew": 0,
+                "rms_height": 2,
+                "slope_p50": 3
+              }
+            ],
+            "title": "Feature Weights"
+          },
           "max_per_region": {
             "anyOf": [
               {
@@ -101,6 +313,14 @@
           "moon": {
             "$ref": "#/components/schemas/MoonQuery"
           },
+          "stability_runs": {
+            "default": 0,
+            "description": "Liczba przebiegów z szumem na cechach Księżyca (0 = wyłączone); wypełnia Analog.stability.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Stability Runs",
+            "type": "integer"
+          },
           "top_k": {
             "default": 5,
             "maximum": 50.0,
@@ -108,12 +328,36 @@
             "title": "Top K",
             "type": "integer"
           },
+          "w_composition": {
+            "default": 0.0,
+            "description": "Waga składu mafic-felsic (proxy IR; percentyl w obrębie ciała); 0 = wyłączony. w_thermal + w_illum + w_composition <= 1.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "W Composition",
+            "type": "number"
+          },
+          "w_illum": {
+            "default": 0.0,
+            "description": "Waga oświetlenia (widoczność Słońca); 0 = wyłączone. w_thermal + w_illum <= 1.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "W Illum",
+            "type": "number"
+          },
           "w_slope": {
             "default": 0.5,
             "description": "Waga nachyleń; (1 - w_slope) = waga kształtu.",
             "maximum": 1.0,
             "minimum": 0.0,
             "title": "W Slope",
+            "type": "number"
+          },
+          "w_thermal": {
+            "default": 0.0,
+            "description": "Waga zakresu temperatur (percentyl); 0 = wyłączony (tylko teren).",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "W Thermal",
             "type": "number"
           }
         },
@@ -126,6 +370,20 @@
       "AnalogsResponse": {
         "additionalProperties": false,
         "properties": {
+          "feature_weights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Weights"
+          },
           "max_per_region": {
             "anyOf": [
               {
@@ -159,8 +417,23 @@
             "title": "Top K",
             "type": "integer"
           },
+          "w_composition": {
+            "default": 0.0,
+            "title": "W Composition",
+            "type": "number"
+          },
+          "w_illum": {
+            "default": 0.0,
+            "title": "W Illum",
+            "type": "number"
+          },
           "w_slope": {
             "title": "W Slope",
+            "type": "number"
+          },
+          "w_thermal": {
+            "default": 0.0,
+            "title": "W Thermal",
             "type": "number"
           }
         },
@@ -495,6 +768,18 @@
       "MoonSummary": {
         "additionalProperties": false,
         "properties": {
+          "composition_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ok / outside_diviner_cf_coverage / missing; null = nie liczone.",
+            "title": "Composition Status"
+          },
           "features": {
             "additionalProperties": {
               "type": "number"
@@ -511,6 +796,18 @@
             "title": "Lon",
             "type": "number"
           },
+          "mafic_felsic_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Percentyl składu mafic-felsic (0 = felsic, 1 = mafic) względem Księżyca albo null (np. bieguny).",
+            "title": "Mafic Felsic Percentile"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -525,6 +822,30 @@
               }
             ],
             "title": "Site Id"
+          },
+          "solar_visibility_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek czasu, gdy Słońce jest nad horyzontem terenu, albo null.",
+            "title": "Solar Visibility Fraction"
+          },
+          "thermal_range_percentile": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Percentyl zakresu temperatur (0..1) albo null.",
+            "title": "Thermal Range Percentile"
           },
           "z_scores": {
             "additionalProperties": {

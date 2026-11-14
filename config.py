@@ -15,7 +15,10 @@ MOON_RADIUS_M = 1_737_400
 # ocean is stored as 0 (not nodata).
 NASADEM_NODATA = -32768
 LOLA_NODATA = -32768
-LOLA_GLOBAL_PATH = DATA_DIR / "lola" / "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
+_LOLA_NAME = "Lunar_LRO_LOLA_Global_LDEM_118m_Mar2014.tif"
+LOLA_GLOBAL_PATH = DATA_DIR / "lola" / _LOLA_NAME
+if not LOLA_GLOBAL_PATH.exists() and (ROOT / "moon" / "data" / _LOLA_NAME).exists():
+    LOLA_GLOBAL_PATH = ROOT / "moon" / "data" / _LOLA_NAME  # alternative location of the same file
 LOLA_POLAR_PATH = DATA_DIR / "lola" / "ldem_80s_20m.lbl"
 LOLA_SCALE = 0.5
 
@@ -46,7 +49,7 @@ THERMAL_REFERENCE_DIR = DATA_DIR / "processed"
 THERMAL_EARTH_REFERENCE_PATH = THERMAL_REFERENCE_DIR / "earth_thermal_reference.json"
 THERMAL_MOON_REFERENCE_PATH = THERMAL_REFERENCE_DIR / "moon_thermal_reference.json"
 THERMAL_COLUMNS = [
-    "patch_id", "surface_temperature_range_k", "thermal_valid_fraction",
+    "patch_id", "surface_temperature_range_k", "thermal_seasonal_range_k", "thermal_valid_fraction",
     "thermal_valid_observations", "thermal_dataset", "thermal_period",
     "thermal_range_percentile",
 ]
@@ -56,8 +59,64 @@ THERMAL_EARTH_COLLECTION = "modis-11A2-061"  # Terra (MOD) + Aqua (MYD), 1 km, 8
 THERMAL_MIN_OBS = 100  # valid Earth observations per pixel (of ~184 per year); fewer = seasonal bias (polar night, cloud)
 THERMAL_MOON_MIN_BINS = 40  # of 96 local-time bins; GCP cells have scattered sampling gaps
 THERMAL_MIN_VALID_FRACTION = 0.70
+THERMAL_MIN_PERIODS = 20  # 8-day periods per pixel (of ~46 per year) with a usable day-night swing
+THERMAL_MIN_SAMPLES_PER_PERIOD = 3  # of 4 overpass samples (Terra/Aqua day/night) needed for a period swing
 THERMAL_MOON_GCP_URL = (
     "https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_gcp"
 )
 THERMAL_MOON_GRID_STEP_DEG = 5.0  # reference grid of lunar cells for the percentile
-W_THERMAL_DEFAULT = 0.2
+W_THERMAL_DEFAULT = 0.1  # experimental: thermal range is only weakly tied to terrain similarity
+
+# Solar-illumination feature (side tables keyed by patch_id).
+ILLUM_EARTH_PATH = DATA_DIR / "illumination_earth.csv"
+ILLUM_MOON_PATH = DATA_DIR / "illumination_moon.csv"
+ILLUM_COLUMNS = [
+    "patch_id", "solar_visibility_fraction", "solar_visibility_astro",
+    "solar_visibility_terrain", "illumination_points", "illumination_horizon_km",
+    "illumination_dataset", "illumination_period",
+]
+ILLUM_START = "2024-01-01"
+ILLUM_END = "2025-01-01"  # exclusive; hourly samples (a 12 h grid would alias with the Earth day)
+ILLUM_STEP_HOURS = 1
+ILLUM_HORIZON_RADIUS_M = 20_000  # Earth DEM window half-size for terrain horizons (mosaics have a ~22 km margin)
+ILLUM_HORIZON_RADIUS_MOON_M = 40_000  # Moon: a 20 km window misses crater walls (polar validation, README)
+ILLUM_GRID_STEP_M = 250.0
+ILLUM_AZIMUTHS = 72
+ILLUM_POINTS_N = 5  # NxN observer points over the central part of the patch
+ILLUM_POINTS_SPAN_M = 8_000
+ILLUM_MIN_ASTRO_FRACTION = 0.02  # below this (polar night) the ratio is not meaningful -> missing
+SPICE_DIR = DATA_DIR / "spice"
+SPICE_KERNELS = ("naif0012.tls", "pck00011.tpc", "de440s.bsp")
+SPICE_URL = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
+W_ILLUM_DEFAULT = 0.1
+
+# Mafic-felsic composition proxy (side tables keyed by patch_id).
+COMPOSITION_EARTH_PATH = DATA_DIR / "composition_earth.csv"
+COMPOSITION_MOON_PATH = DATA_DIR / "composition_moon.csv"
+COMPOSITION_EARTH_REFERENCE_PATH = DATA_DIR / "processed" / "earth_composition_reference.json"
+COMPOSITION_MOON_REFERENCE_PATH = DATA_DIR / "processed" / "moon_composition_reference.json"
+COMPOSITION_EARTH_COLUMNS = [
+    "patch_id", "mafic_index_raw", "quartz_index_raw", "mafic_felsic_percentile",
+    "composition_valid_pixel_ratio", "composition_observation_count_median",
+    "composition_confidence", "composition_status", "composition_dataset", "composition_reference_version",
+]
+COMPOSITION_MOON_COLUMNS = [
+    "patch_id", "diviner_cf_microns", "mafic_felsic_percentile", "composition_valid_pixel_ratio",
+    "composition_confidence", "composition_status", "composition_dataset", "composition_reference_version",
+]
+COMPOSITION_DIR = DATA_DIR / "composition"
+COMPOSITION_CF_PATH = COMPOSITION_DIR / "DIVGLOB1701_CX3.tiff"
+COMPOSITION_CF_URL = "https://zenodo.org/records/4558235/files/DIVGLOB1701_CX3.tiff?download=1"
+COMPOSITION_CF_PPD = 32  # pixels per degree; the file has no georeferencing: lat +70 (top) .. -70, lon -180 .. 180
+COMPOSITION_CF_MAX_ABS_LAT = 70.0
+ASTER_GED_DIR = DATA_DIR / "aster_ged"
+ASTER_EMISSIVITY_SCALE = 0.001
+ASTER_NDVI_SCALE = 0.01
+ASTER_LAND_CLASS = 1  # AG100 land/water map value for land (verify on the first real tile)
+COMPOSITION_MAX_NDVI = 0.20
+COMPOSITION_MIN_VALID_RATIO = 0.30
+COMPOSITION_MIN_ASTER_OBS = 3
+COMPOSITION_TRIM_PERCENT = 1.0
+COMPOSITION_QI_FLAG_PERCENTILE = 95.0
+COMPOSITION_GRID_STEP_DEG = 5.0
+W_COMPOSITION_DEFAULT = 0.0  # opt-in: experimental, needs the Earth ASTER GED build

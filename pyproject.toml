@@ -6,15 +6,18 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.162.7",
+    "h5py>=3.16.0",
     "matplotlib>=3.11.2",
     "numpy>=2.5.4",
     "pandas>=3.1.1",
     "planetary-computer>=1.0.0",
+    "pvlib>=0.16.1",
     "pyproj>=3.8.0",
     "pystac-client>=0.9.1",
     "rasterio>=1.5.2",
     "requests>=2.34.2",
     "scipy>=1.18.1",
+    "spiceypy>=8.4.0",
     "streamlit>=1.67.0",
     "uvicorn[standard]>=0.54.0",
 ]

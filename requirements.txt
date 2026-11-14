@@ -12,3 +12,6 @@ fastapi
 uvicorn
 pytest
 httpx
+pvlib
+spiceypy
+h5py

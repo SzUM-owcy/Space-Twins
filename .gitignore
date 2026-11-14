@@ -227,3 +227,7 @@ outputs/
 data/copdem/
 src/README-personA.md
 scratch/
+data/spice/
+data/validation/
+data/composition/
+data/aster_ged/
