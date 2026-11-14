@@ -58,10 +58,24 @@ relative to other patches of its own body.
 thermal-infrared emissivity ratio; Moon: Diviner Christiansen Feature wavelength. It is a coarse proxy, not
 mineral or chemical equality, and the Moon polar sites (beyond ±70°) have no value.
 
-5. **Practicality** (separate from similarity, opt-in): how hard/expensive a simulation would be at an Earth patch -
-access, buildability, emergency support, infrastructure and population scores plus constraint flags (protected
-areas, World Heritage, land rights, habitat, water, hazards, security). It never changes the scientific
-score; see [`docs/practicality.md`](docs/practicality.md). Use `--practicality` (CLI) or `include_practicality` (API).
+5. **Practicality** (separate from similarity, opt-in): how hard, expensive and disruptive a simulation would be at an
+Earth patch. It answers a different question from the analog score and **never changes it**: a site is not
+ranked higher because it is cheap or accessible. Details in [`docs/practicality.md`](docs/practicality.md).
+
+- **Group A, cost drivers (0-100 scores, higher = easier/cheaper):** `access_score` (travel time to cities, airports,
+  major roads), `buildability_score` (best ~1 x 1 km facility core inside the patch + bare-ground fraction),
+  `emergency_support_score` (travel time to healthcare), `infrastructure_score` (distance to high-voltage lines),
+  `population_score`.
+- **Group B, intrinsic constraints (flags, not scores):** protected areas, World Heritage, community/land rights,
+  biodiversity, water stress, volcanic hazard, security. Each is `ok | warning | manual_review | excluded | missing`;
+  any `excluded` makes the site `hard_excluded` (class `EXCLUDED / MANUAL REVIEW`, not "Very High").
+- **Population** gives two separate penalties: `isolation_logistics_penalty` (few people nearby) and
+  `population_impact_penalty` (many people nearby).
+- **Two profiles:** `field_campaign_score` (short rover/instrument campaigns: access and emergency matter most) and
+  `facility_score` (repeated campaigns, habitats: infrastructure and buildability matter most), each with a relative
+  cost class `LOW / MEDIUM / HIGH / VERY HIGH` (>= 75 / 50 / 25 / below).
+- Missing data is never zero: scores are renormalised over the available dimensions and
+  `practicality_completeness` / `practicality_confidence` say how complete they are.
 
 All optional features live in side
 tables keyed by `patch_id`, so the strict 17-column index CSVs ([`docs/CONTRACT.md`](docs/CONTRACT.md)) are
@@ -105,6 +119,7 @@ and are not proof of environmental equivalence. See the limitations below.
 | **Composition** | Earth | [ASTER Global Emissivity Dataset AG100.003](https://lpdaac.usgs.gov/products/ag100v003/) (100 m, 2000–2008 clear-sky; bands 10–14, NDVI, land/water map, observation count; **needs a free NASA Earthdata login**) | Mafic Index `e12 / e13` (Quartz Index `e11² / (e10·e12)` only as a confounder flag), patch median over bare land pixels |
 | | Moon | [Diviner Christiansen Feature map, viewing- and space-weathering-corrected](https://zenodo.org/records/4558194) (Lucey et al. 2021; 32 pixels/degree, ±70° latitude, no login); the older `DIVGLOB1701_CX3` map is kept only for a comparison table | CF wavelength: higher = more mafic, lower = more felsic / anorthositic. The same record's Diviner plagioclase / pyroxene / olivine rasters give diagnostic fractions |
 | | Earth (fallback) | [Macrostrat](https://macrostrat.org/api) geologic-unit API (public, CC-BY 4.0, no login), 3×3 sample points per patch | Categorical lithology and confounder fractions (explanation only, never turned into the percentile) |
+| **Practicality** | Earth | [WorldPop 2020 1 km](https://www.worldpop.org/) population; [Malaria Atlas Project](https://malariaatlas.org/) travel time to cities (2015) and to healthcare (2020); [OurAirports](https://ourairports.com/data/); [Natural Earth](https://www.naturalearthdata.com/) major roads; [ESA WorldCover 2021](https://esa-worldcover.org/); OSM power lines via Overpass; [WDPA](https://www.protectedplanet.net/) protected areas; Smithsonian [GVP](https://volcano.si.edu/) Holocene volcanoes (all no login) | Access, buildability, emergency, infrastructure and population scores, constraint flags. Grid distance is OSM for 15 regions and an approximate estimate from general knowledge elsewhere (`grid_source = estimated`) |
 | **Solar illumination** | Earth | NASADEM / Copernicus DEM (terrain horizon, as above) + [pvlib](https://pvlib-python.readthedocs.io/) solar position (NREL SPA), hourly 2024 | Share of time the Sun is above the terrain horizon |
 | | Moon | LOLA 118 m DEM (terrain horizon, 40 km window) + [NASA/JPL SPICE](https://naif.jpl.nasa.gov/naif/) ephemerides (`de440s.bsp`, `pck00011.tpc`, `naif0012.tls`), same hourly grid | Share of time the Sun is above the terrain horizon |
 
@@ -119,10 +134,10 @@ the [80 m south-polar LOLA DEM `LDEM_80S_80MPP_ADJ`](https://pgda.gsfc.nasa.gov/
 | Earth index | `data/earth_index.csv`: **5009 patches, 73 regions** (63 NASADEM + 10 Copernicus DEM; 8 validation regions flagged in `data/regions.csv`; small regions use overlapping patches via `stride_km`) |
 | Moon index | `data/moon_index.csv`: **18 sites** (Apollo, maria, highlands, craters, 4 polar) + `data/patches/moon/*.npy` |
 | Earth patches | `data/patches/earth_npz/{region}.npz`, one small archive per region |
-| Side tables | `data/thermal_*.csv`, `data/illumination_*.csv`, `data/composition_*.csv`, `data/processed/*_reference.json` |
+| Side tables | `data/thermal_*.csv`, `data/illumination_*.csv`, `data/composition_*.csv`, `data/practicality_earth.csv`, `data/processed/*_reference.json` |
 
 Not committed (gitignored): raw DEM tiles (`data/nasadem`, `data/copdem`), LOLA rasters (`data/lola/` or
-`moon/data/`; global 118 m is 8.5 GB; the 20 m south-polar DEM is only needed for live terrain queries below 80°S), SPICE kernels (`data/spice/`), the Diviner CF map and ASTER GED tiles (`data/composition/`, `data/aster_ged/`) and
+`moon/data/`; global 118 m is 8.5 GB; the 20 m south-polar DEM is only needed for live terrain queries below 80°S), SPICE kernels (`data/spice/`), the Diviner CF map and ASTER GED tiles (`data/composition/`, `data/aster_ged/`, `data/practicality/`) and
 the polar validation rasters (`data/validation/`, ~230 MB).
 
 ---
@@ -145,6 +160,40 @@ uv run --frozen python 2_find_analogs.py --lat 14.07 --lon -56.75     # any poin
 ```
 
 Results are printed and saved to `outputs/latest_query.json`.
+
+### Practicality and the Pareto front
+
+The analog ranking (top-K by scientific distance) is computed first and is never altered. Practicality is an
+extra, opt-in layer on the returned candidates:
+
+```bash
+# 1. query with practicality blocks (CLI); more candidates give a fuller Pareto front
+uv run --frozen python 2_find_analogs.py --site apollo_11 --top-k 20 --max-per-region 0 --practicality
+# 2. plot scientific fit vs practical feasibility (field or facility profile)
+uv run --frozen python 3b_plot_pareto.py --profile field        # -> outputs/pareto_field.png
+uv run --frozen python 3b_plot_pareto.py --profile facility     # -> outputs/pareto_facility.png
+```
+
+HTTP API: `POST /api/v1/analogs` with `"include_practicality": true`. Each result then also has:
+
+- `practicality`: the scores above, `field_campaign_score`, `facility_score`, their cost classes, `grid_source`
+  (`osm` or `estimated`), completeness/confidence, and `pareto_field` / `pareto_facility`;
+- `constraints`: the seven flags, `hard_excluded` and `exclusion_reasons`.
+
+**Pareto front.** The two questions are never merged into one opaque score. Instead each candidate is a point
+(practical score, scientific `total_distance`). A candidate is *Pareto-optimal* when no other returned candidate is
+both scientifically closer (or equal) **and** more practical (or equal), with at least one strictly better. Those are
+the sensible trade-offs; the rest are dominated by another site that is better on both counts.
+
+- Nothing is removed or re-ranked: the top-K list is the same with or without practicality. Dominated and excluded
+  sites stay in the output (excluded ones are drawn as crosses in the plot), so a scientifically excellent but
+  expensive site remains visible for you to justify.
+- The front is computed only among the returned candidates, so it depends on `top_k` and `max_per_region`.
+- `pareto_field` and `pareto_facility` are separate because the two profiles weigh costs differently.
+- Reading the plot: x = practical score (right = easier/cheaper), y = analog distance with the axis inverted
+  (up = better), so the best sites are in the top right; green = Pareto-optimal.
+
+The Streamlit app does not show these blocks yet; the data is in the API/CLI output.
 
 ### Streamlit app and HTTP API
 
@@ -218,6 +267,16 @@ uv run --frozen python 1e_build_composition.py earth-minerals  # estimated Earth
 uv run --frozen python 1e_build_composition.py earth
 uv run --frozen python 1e_build_composition.py validate        # outputs/composition_validation.{csv,png}
 uv run --frozen python 1e_build_composition.py finalize        # versioned references + percentiles
+
+# Practicality side table (downloads are cached in the gitignored data/practicality/; WorldPop is ~870 MB)
+uv run --frozen python 1f_build_practicality.py init           # empty table for all patches
+uv run --frozen python 1f_build_practicality.py buildability   # best 1 km facility core from the cached DEM patches
+uv run --frozen python 1f_build_practicality.py access         # travel time to cities/healthcare, airports, roads
+uv run --frozen python 1f_build_practicality.py population     # WorldPop people within 10/25/50 km
+uv run --frozen python 1f_build_practicality.py landcover      # ESA WorldCover bare/tree/wetland fractions
+uv run --frozen python 1f_build_practicality.py grid           # cached OSM + estimates; --fetch queries Overpass (slow)
+uv run --frozen python 1f_build_practicality.py protected      # WDPA protected-area lookups (cache)
+uv run --frozen python 1f_build_practicality.py flags          # volcano hazard + all constraint flags
 ```
 
 ### How the optional features are computed
@@ -381,6 +440,11 @@ breaks down), not as a single "Moon-likeness" score.
 
 ## Scientific scope and limitations
 
+- Practicality is a coarse screening aid, not a cost estimate: it uses 1 km rasters, estimated airport travel
+  times, healthcare (not strictly hospital) travel times, and approximate grid distances for most regions
+  (`grid_source = estimated`). Water stress is a proxy, land rights are always `manual_review`, and the security
+  list is curated and must be rechecked before any deployment. Antarctic patches lack travel-time data. It never
+  feeds the scientific score.
 - Only elevation-derived morphometry is the core comparison; thermal and illumination are experimental
   add-ons. Composition, regolith, gravity, vacuum and radiation are **not** compared.
 - Earth analogs come from a hand-picked set of regions, not global coverage; some regions contain mixed
