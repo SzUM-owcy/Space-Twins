@@ -205,6 +205,9 @@ uv run --frozen uvicorn api.main:app --reload --port 8000     # docs at http://l
 The backend ↔ frontend contract is [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md), generated into
 [`api/openapi.json`](api/openapi.json) (regenerate with `uv run --frozen python -m api.export_openapi`).
 
+The chat assistant (`POST /api/v1/chat`) needs a Google AI Studio key: copy `.env.example` to `.env` and set
+`GOOGLE_API_KEY`. `.env` is gitignored.
+
 ### Tests
 
 ```bash

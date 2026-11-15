@@ -19,6 +19,7 @@ ErrorCode = Literal[
     "NOT_FOUND",
     "PATCH_REJECTED",
     "RASTER_UNAVAILABLE",
+    "CHAT_UNAVAILABLE",
     "INTERNAL_ERROR",
 ]
 
