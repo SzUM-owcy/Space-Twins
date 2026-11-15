@@ -142,6 +142,18 @@ class AnalogsRequest(Model):
         default=0.0, ge=0, le=1,
         description="Waga składu mafic-felsic (proxy IR; percentyl w obrębie ciała); 0 = wyłączony. w_thermal + w_illum + w_composition <= 1.",
     )
+    scoring_method: Literal["legacy_percentile", "physical_hybrid_v1"] = Field(
+        default="legacy_percentile",
+        description=(
+            "legacy_percentile: z-score/percentyl dla wszystkich składników. physical_hybrid_v1: teren = RMS różnic fizycznych "
+            "/ stałe skale, termika = różnica zakresu w K, oświetlenie = |różnica ułamków|, skład = |różnica percentyli ciała|; "
+            "suma = średnia ważona (brak danych = składnik wypada; łatki bez danych termicznych są pomijane, gdy termika jest włączona)."
+        ),
+    )
+    profile: str | None = Field(
+        default=None,
+        description="Profil wag składników (default, rover_mobility, thermal_hardware, solar_operations, geology_isru); tylko physical_hybrid_v1, zastępuje w_thermal/w_illum/w_composition.",
+    )
     stability_runs: int = Field(
         default=0, ge=0, le=100,
         description="Liczba przebiegów z szumem na cechach Księżyca (0 = wyłączone); wypełnia Analog.stability.",
@@ -167,6 +179,12 @@ class AnalogsRequest(Model):
                 raise ValueError("feature_weights: wagi >= 0 i nie wszystkie zerowe")
         if self.w_thermal + self.w_illum + self.w_composition > 1.0:
             raise ValueError("w_thermal + w_illum + w_composition musi być <= 1")
+        if self.profile is not None:
+            if self.scoring_method != "physical_hybrid_v1":
+                raise ValueError("profile wymaga scoring_method=physical_hybrid_v1")
+            from src.distance import load_profile
+
+            load_profile(self.profile)  # ValueError for an unknown profile -> 422
         return self
 
 
@@ -244,6 +262,12 @@ class Analog(Model):
     total_distance: float = Field(description="Mniejsza = bardziej podobny teren.")
     terrain_distance: float | None = Field(default=None, description="Tylko teren; ustawione, gdy w_thermal lub w_illum > 0.")
     thermal_distance: float | None = None
+    thermal_difference_k: float | None = Field(default=None, description="physical_hybrid_v1: |różnica zakresu temperatur| w K.")
+    illumination_difference: float | None = Field(default=None, description="physical_hybrid_v1: |różnica ułamków widoczności Słońca|.")
+    terrain_weight_applied: float | None = Field(default=None, description="physical_hybrid_v1: waga użyta po renormalizacji.")
+    thermal_weight_applied: float | None = None
+    illumination_weight_applied: float | None = None
+    composition_weight_applied: float | None = None
     thermal_status: Literal["ok", "missing"] | None = None
     illumination_distance: float | None = None
     illumination_status: Literal["ok", "missing"] | None = None
@@ -296,6 +320,9 @@ class Analog(Model):
 
 class AnalogsResponse(Model):
     moon: MoonSummary
+    scoring_method: Literal["legacy_percentile", "physical_hybrid_v1"] = "legacy_percentile"
+    distance_config_version: str | None = Field(default=None, description="Wersja skal odległości (physical_hybrid_v1).")
+    profile: str | None = None
     w_slope: float
     feature_weights: dict[str, float] | None = None
     w_thermal: float = 0.0

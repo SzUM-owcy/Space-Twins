@@ -11,11 +11,17 @@ import rasterio
 
 from config import (
     FEATURE_NAMES,
+    SHAPE_FEATURES,
+    SLOPE_FEATURES,
     LOLA_GLOBAL_PATH,
     LOLA_NODATA,
     LOLA_POLAR_PATH,
     LOLA_SCALE,
     PIXEL_SIZE_M,
+)
+from src.distance import (
+    SCORING_METHODS, aggregate, composition_distance, illumination_distance, load_config, terrain_distance,
+    thermal_distance,
 )
 from src.morphometry import extract_patch_features
 from src.raster_io import extract_patch
@@ -215,6 +221,93 @@ def _add_components(
     return ranked.sort_values("total_distance", kind="stable")
 
 
+HYBRID_RESULT_COLUMNS = [
+    "thermal_difference_k", "illumination_difference",
+    "terrain_weight_applied", "thermal_weight_applied", "illumination_weight_applied", "composition_weight_applied",
+]
+
+
+def _hybrid_scores(
+    moon_features: Mapping[str, float],
+    earth_index: pd.DataFrame,
+    weights: Mapping[str, float],
+    feature_weights: Mapping[str, float] | None,
+    moon_thermal_swing_k: float | None,
+    earth_thermal: pd.DataFrame | None,
+    moon_illumination: float | None,
+    earth_illumination: pd.DataFrame | None,
+    moon_composition: float | None,
+    earth_composition: pd.DataFrame | None,
+    moon_minerals: Mapping[str, float] | None,
+    earth_minerals: pd.DataFrame | None,
+) -> tuple[pd.DataFrame, str]:
+    """``physical_hybrid_v1``: physical distances per component, then a weighted mean (missing drops out)."""
+    cfg = load_config()
+    terrain, norm = terrain_distance(moon_features, earth_index, cfg.terrain_scales, feature_weights)
+    ids = earth_index["patch_id"]
+    out = earth_index[["patch_id", "region", "center_lat", "center_lon"]].copy()
+    out["slope_distance"] = np.sqrt((norm[SLOPE_FEATURES] ** 2).mean(axis=1))
+    out["shape_distance"] = np.sqrt((norm[SHAPE_FEATURES] ** 2).mean(axis=1))
+    out["terrain_distance"] = terrain
+    parts: dict[str, pd.Series] = {"terrain": terrain}
+
+    def lookup(table: pd.DataFrame | None, column: str, mask: pd.Series | None = None) -> pd.Series:
+        if table is None:
+            return pd.Series(np.nan, index=earth_index.index)
+        s = table.set_index("patch_id")[column]
+        if mask is not None:
+            s = s.where(table.set_index("patch_id")["composition_status"] == "ok")
+        return ids.map(s).astype(float).set_axis(earth_index.index)
+
+    if weights.get("thermal", 0.0) > 0:
+        dist, diff = thermal_distance(
+            moon_thermal_swing_k, lookup(earth_thermal, "surface_temperature_range_k"), cfg.thermal_scale_k
+        )
+        out["thermal_distance"], out["thermal_difference_k"] = dist, diff
+        out["thermal_status"] = np.where(dist.notna(), "ok", "missing")
+        parts["thermal"] = dist
+    if weights.get("illumination", 0.0) > 0:
+        dist, diff = illumination_distance(
+            moon_illumination, lookup(earth_illumination, ILLUM_VALUE_COLUMN), cfg.illumination_gamma
+        )
+        out["illumination_distance"], out["illumination_difference"] = dist, diff
+        out["illumination_status"] = np.where(dist.notna(), "ok", "missing")
+        parts["illumination"] = dist
+    if weights.get("composition", 0.0) > 0:
+        aster_ready = earth_composition is not None and bool((earth_composition["composition_status"] == "ok").any())
+        if not aster_ready and earth_minerals is not None:
+            # No Earth ASTER table: lithology-based mineral-mix distance (already 0..1, not rescaled).
+            from src.minerals import mineral_distance, normalize_moon_minerals
+
+            moon_norm = normalize_moon_minerals(dict(moon_minerals)) if moon_minerals else None
+            by_id = earth_minerals.set_index("patch_id")
+            raw = pd.Series([mineral_distance(moon_norm, r) for _, r in by_id.iterrows()], index=by_id.index)
+            dist = ids.map(raw).astype(float).set_axis(earth_index.index)
+            out["composition_source"] = "lithology_minerals"
+            out["composition_confidence"] = np.where(dist.notna(), "low_lithology_estimate", None)
+            out["mineral_distance"] = dist
+        else:
+            percentile = lookup(earth_composition, COMPOSITION_VALUE_COLUMN, mask=True)
+            dist = composition_distance(moon_composition, percentile)
+            out["earth_mafic_felsic_percentile"] = percentile
+            if earth_composition is not None:
+                conf = ids.map(earth_composition.set_index("patch_id")["composition_confidence"])
+                out["composition_confidence"] = conf.where(dist.notna()).to_numpy()
+        out["composition_distance"] = dist
+        out["composition_status"] = np.where(dist.notna(), "ok", "missing")
+        parts["composition"] = dist
+
+    total, applied = aggregate(parts, weights)
+    if "thermal" in parts and moon_thermal_swing_k is not None and np.isfinite(moon_thermal_swing_k):
+        # The fixed-Kelvin thermal term is large for every Earth patch, so a missing term would act as a bonus.
+        # Patches without Earth thermal data are therefore left out of the ranking (not scored as zero).
+        total = total.where(parts["thermal"].notna())
+    out["total_distance"] = total
+    for name in ("terrain", "thermal", "illumination", "composition"):
+        out[f"{name}_weight_applied"] = applied[name] if name in applied else 0.0
+    return out.dropna(subset=["total_distance"]).sort_values("total_distance", kind="stable"), cfg.version
+
+
 def find_analogs(
     moon_features: Mapping[str, float],
     earth_index: pd.DataFrame,
@@ -234,6 +327,9 @@ def find_analogs(
     earth_lithology: pd.DataFrame | None = None,
     moon_minerals: Mapping[str, float] | None = None,
     earth_minerals: pd.DataFrame | None = None,
+    scoring_method: str = "legacy_percentile",
+    component_weights: Mapping[str, float] | None = None,
+    moon_thermal_swing_k: float | None = None,
 ) -> pd.DataFrame:
     """Najbardziej podobne łatki Ziemi do łatki Księżyca (mniejsza odległość = większe podobieństwo).
 
@@ -252,7 +348,14 @@ def find_analogs(
     ``composition_confidence``; odległość = |różnica percentyli| / std Ziemi (obcięta do 3); brak danych
     (np. bieguny Księżyca) = składnik wypada z sumy. ``earth_lithology`` (opcjonalnie: ``patch_id``,
     ``dominant_lithology``, ``mixed_lithology_flag``) dodaje kolumny objaśniające; nie wpływa na wynik.
+
+    ``scoring_method="physical_hybrid_v1"``: teren = RMS różnic fizycznych / stałe skale, termika = różnica
+    zakresu w K / stała skala, oświetlenie = |różnica ułamków|, skład = |różnica percentyli ciała|; suma =
+    średnia ważona składników (brak danych = składnik wypada). ``component_weights`` (profil) zastępuje
+    ``w_thermal/w_illum/w_composition``; ``moon_thermal_swing_k`` to zakres temperatur Księżyca w K.
     """
+    if scoring_method not in SCORING_METHODS:
+        raise ValueError(f"scoring_method musi być jednym z {SCORING_METHODS}, jest {scoring_method!r}")
     if not 0.0 <= w_thermal <= 1.0:
         raise ValueError(f"w_thermal musi być w [0, 1], jest {w_thermal}")
     if not 0.0 <= w_illum <= 1.0:
@@ -270,12 +373,23 @@ def find_analogs(
             raise ValueError(f"earth_index nie ma kolumny {col!r}")
 
     scaler = fit_scaler(earth_index)
-    dist = distances(moon_features, earth_index, scaler, w_slope, feature_weights)
-    ranked = pd.concat(
-        [earth_index[["patch_id", "region", "center_lat", "center_lon"]], dist], axis=1
-    ).sort_values("total_distance", kind="stable")
+    hybrid = scoring_method == "physical_hybrid_v1"
+    if hybrid:
+        weights = dict(component_weights) if component_weights is not None else {
+            "terrain": 1.0 - w_thermal - w_illum - w_composition,
+            "thermal": w_thermal, "illumination": w_illum, "composition": w_composition,
+        }
+        ranked, config_version = _hybrid_scores(
+            moon_features, earth_index, weights, feature_weights, moon_thermal_swing_k, earth_thermal,
+            moon_illumination, earth_illumination, moon_composition, earth_composition, moon_minerals, earth_minerals,
+        )
+    else:
+        dist = distances(moon_features, earth_index, scaler, w_slope, feature_weights)
+        ranked = pd.concat(
+            [earth_index[["patch_id", "region", "center_lat", "center_lon"]], dist], axis=1
+        ).sort_values("total_distance", kind="stable")
 
-    if w_thermal > 0.0 or w_illum > 0.0 or w_composition > 0.0:
+    if not hybrid and (w_thermal > 0.0 or w_illum > 0.0 or w_composition > 0.0):
         ranked = _add_components(
             ranked, moon_thermal_percentile, earth_thermal, w_thermal,
             moon_illumination, earth_illumination, w_illum,
@@ -289,7 +403,10 @@ def find_analogs(
     for name in ("terrain", "thermal", "illumination", "composition"):
         if f"{name}_distance" in result.columns:
             result[f"{name}_quality"] = result[f"{name}_distance"].map(quality_label)
-    extra = THERMAL_RESULT_COLUMNS + ILLUM_RESULT_COLUMNS + COMPOSITION_RESULT_COLUMNS + QUALITY_COLUMNS
+    extra = (
+        THERMAL_RESULT_COLUMNS + ILLUM_RESULT_COLUMNS + COMPOSITION_RESULT_COLUMNS + QUALITY_COLUMNS
+        + (HYBRID_RESULT_COLUMNS if hybrid else [])
+    )
     result = result[RESULT_COLUMNS + [c for c in extra if c in result.columns]]
     if earth_lithology is not None:
         by_id = earth_lithology.set_index("patch_id")
@@ -312,6 +429,9 @@ def find_analogs(
         if moon_norm:
             result.attrs["moon_minerals"] = moon_norm
 
+    result.attrs["scoring_method"] = scoring_method
+    if hybrid:
+        result.attrs["distance_config_version"] = config_version
     z_moon = transform(moon_features, scaler)[0]
     result.attrs["out_of_range"] = [
         name for name, z in zip(FEATURE_NAMES, z_moon) if abs(z) > OUT_OF_RANGE_Z

@@ -1,0 +1,32 @@
+version: "physical-distance-v1"
+
+# Terrain scales are filled by scripts/calibrate_distance_scales.py (MAD of the Earth index, frozen once).
+# Re-running it creates a NEW version; never overwrite a released one, so adding Earth patches does not
+# change historical distances. Floors are the minimum physical scale (measurement/resolution uncertainty).
+terrain:
+  slope_p05: {scale: 0.4936, min_scale: 0.25, unit: degree, source: mad_earth_index_5009}
+  slope_p10: {scale: 0.7234, min_scale: 0.25, unit: degree, source: mad_earth_index_5009}
+  slope_p25: {scale: 1.26, min_scale: 0.5, unit: degree, source: mad_earth_index_5009}
+  slope_p50: {scale: 2.435, min_scale: 1.0, unit: degree, source: mad_earth_index_5009}
+  slope_p75: {scale: 4.916, min_scale: 1.0, unit: degree, source: mad_earth_index_5009}
+  slope_p90: {scale: 8.559, min_scale: 2.0, unit: degree, source: mad_earth_index_5009}
+  slope_p95: {scale: 11.1, min_scale: 2.0, unit: degree, source: mad_earth_index_5009}
+  rms_height: {scale: 42.26, min_scale: 5.0, unit: metre, source: mad_earth_index_5009}
+  tri_mean: {scale: 21.97, min_scale: 2.0, unit: metre, source: mad_earth_index_5009}
+  relief_range: {scale: 343.9, min_scale: 50.0, unit: metre, source: mad_earth_index_5009}
+  hypsometric_integral: {scale: 0.1333, min_scale: 0.05, unit: fraction, source: mad_earth_index_5009}
+  elev_skew: {scale: 0.6429, min_scale: 0.25, unit: dimensionless, source: mad_earth_index_5009}
+
+thermal:
+  # Provisional expert value: a 10 K difference in diurnal/seasonal surface-temperature swing is one reference step.
+  # Earth (MODIS, median ~24 K) and Moon (Diviner, median ~280 K) differ a lot, so distances are large by design.
+  temperature_swing: {scale_k: 10.0, source: provisional_expert_default}
+
+illumination:
+  method: absolute_fraction_difference
+  gamma: 1.0
+
+composition:
+  method: body_relative_percentile
+  earth_reference_version: null
+  moon_reference_version: null

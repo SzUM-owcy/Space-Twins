@@ -305,6 +305,32 @@ as `|Δ percentile| / std(Earth)`, capped at 3. Illumination distance is
 `|Δ fraction| / std(Earth)`, capped at 3. Horizons are ray-marched (72 azimuths, curvature included) from a
 5 × 5 grid of points in the patch centre.
 
+### Scoring methods
+
+`legacy_percentile` (default) compares every component as a percentile / z-score within its own body, as
+described above. `physical_hybrid_v1` (CLI `--scoring-method physical_hybrid_v1`, API `scoring_method`) picks a
+comparison that suits each feature family; smaller is still better and the result is not turned into a percentage.
+
+| Component | `physical_hybrid_v1` distance |
+|---|---|
+| Terrain | per-feature `abs(Δ value) / scale` on a fixed, versioned scale (frozen MAD of the Earth index), combined with a weighted RMS |
+| Thermal | `abs(Δ temperature swing) / 10 K` (provisional scale); raw K in `thermal_difference_k` |
+| Illumination | `abs(Δ solar-visibility fraction)` (no division by the Earth spread) |
+| Composition | `abs(Δ body-relative percentile)` (still a proxy, the two instruments measure different quantities) |
+| Total | Weighted mean of the available components; a missing component drops out and the rest renormalise |
+
+Scales live in [`distance_config/distance_scales.yaml`](distance_config/distance_scales.yaml) (created by
+`scripts/calibrate_distance_scales.py`; scales that are already set are never overwritten, so adding Earth patches
+does not change old distances). Weights come from `--w-*` or from a profile in
+[`distance_config/scoring_profiles.yaml`](distance_config/scoring_profiles.yaml) (`--profile rover_mobility`,
+`thermal_hardware`, `solar_operations`, `geology_isru`, `default`). Caveat: the Earth temperature swing (median
+~24 K) is far below the Moon's (~280 K), so every thermal distance is large; when the thermal weight is above 0,
+Earth patches without thermal data are left out of the ranking instead of being rewarded.
+
+```bash
+uv run --frozen python 2_find_analogs.py --site apollo_11 --scoring-method physical_hybrid_v1 --profile rover_mobility
+```
+
 ---
 
 ## Repository layout
@@ -319,6 +345,7 @@ as `|Δ percentile| / std(Earth)`, capped at 3. Illumination distance is
 | `4_validate_illumination.py` | Polar illumination validation against NASA's LOLA visibility map |
 | `5_analyze_features.py` | Terrain-feature diagnostics, scoring-scheme comparison and Earth coverage gaps |
 | `app.py` | Streamlit app |
+| `distance_config/`, `src/distance/`, `scripts/` | Hybrid scoring: versioned scales and profiles, per-component distances, scale calibration |
 | `api/` | FastAPI backend (`main.py`, `service.py`, `schemas.py`, OpenAPI + examples) |
 | `src/raster_io.py`, `src/morphometry.py` | Shared patch extraction and the 12 terrain features |
 | `src/scoring.py`, `src/query.py` | Scaling, distances, `find_analogs`, live Moon extraction |
