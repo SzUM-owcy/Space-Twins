@@ -29,6 +29,7 @@ from config import (
     W_ILLUM_DEFAULT,
     W_THERMAL_DEFAULT,
 )
+from src.distance import SCORING_METHODS, load_profile
 from src.morphometry import FEATURE_NAMES
 from src.practicality import practicality_blocks
 from src.query import find_analogs, moon_features_for, rank_stability
@@ -73,6 +74,14 @@ def parse_args() -> argparse.Namespace:
         help="waga składnika składu mafic-felsic w [0, 1] (0 = wyłączony); wymaga data/composition_*.csv",
     )
     p.add_argument(
+        "--scoring-method", choices=SCORING_METHODS, default="legacy_percentile",
+        help="legacy_percentile (domyślnie) albo physical_hybrid_v1 (odległości fizyczne per składnik)",
+    )
+    p.add_argument(
+        "--profile", default=None,
+        help="profil wag składników z distance_config/scoring_profiles.yaml (tylko physical_hybrid_v1; zastępuje --w-*)",
+    )
+    p.add_argument(
         "--feature-weights", default=None, metavar="NAME=W,...",
         help="względne ważności cech terenu, np. slope_p50=3,rms_height=2 (pominięte = 1; zastępuje --w-slope)",
     )
@@ -84,6 +93,14 @@ def parse_args() -> argparse.Namespace:
     args.feature_weights = parse_feature_weights(p, args.feature_weights)
     if args.w_thermal + args.w_illum + args.w_composition > 1.0:
         p.error("--w-thermal + --w-illum + --w-composition musi być <= 1")
+    args.component_weights = None
+    if args.profile is not None:
+        if args.scoring_method != "physical_hybrid_v1":
+            p.error("--profile wymaga --scoring-method physical_hybrid_v1")
+        try:
+            args.component_weights = load_profile(args.profile)
+        except ValueError as err:
+            p.error(str(err))
     if (args.lat is None) != (args.lon is None):
         p.error("--lat i --lon podaje się razem")
     return args
@@ -188,7 +205,8 @@ def main() -> None:
         earth_thermal = pd.read_csv(THERMAL_EARTH_PATH) if THERMAL_EARTH_PATH.exists() else None
         illum = moon_illumination(args, moon)
         earth_illum = pd.read_csv(ILLUM_EARTH_PATH) if ILLUM_EARTH_PATH.exists() else None
-        comp = moon_composition_info(args, moon) if args.w_composition > 0 else moon_composition_info_empty()
+        weights_on = args.component_weights or {"composition": args.w_composition}
+        comp = moon_composition_info(args, moon) if weights_on.get("composition", 0) > 0 else moon_composition_info_empty()
         from src.moon_composition import moon_minerals_for
 
         moon_minerals = moon_minerals_for(args.site and moon["patch_id"], args.lat or 0.0, args.lon or 0.0)
@@ -210,6 +228,9 @@ def main() -> None:
             earth_minerals=pd.read_csv(COMPOSITION_EARTH_MINERALS_PATH) if COMPOSITION_EARTH_MINERALS_PATH.exists() else None,
             moon_minerals=moon_minerals,
             feature_weights=args.feature_weights,
+            scoring_method=args.scoring_method,
+            component_weights=args.component_weights,
+            moon_thermal_swing_k=thermal["surface_temperature_range_k"],
         )
         result = find_analogs(moon["features"], earth_index, top_k=args.top_k, **find_kwargs)
         if args.stability:
@@ -226,6 +247,10 @@ def main() -> None:
 
     payload = {
         "moon": moon,
+        "scoring_method": args.scoring_method,
+        "distance_config_version": result.attrs.get("distance_config_version"),
+        "profile": args.profile,
+        "component_weights": args.component_weights,
         "w_slope": args.w_slope,
         "w_thermal": args.w_thermal,
         "moon_thermal": thermal,

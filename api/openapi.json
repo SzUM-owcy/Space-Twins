@@ -74,6 +74,17 @@
             ],
             "title": "Composition Status"
           },
+          "composition_weight_applied": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Composition Weight Applied"
+          },
           "constraints": {
             "anyOf": [
               {
@@ -175,6 +186,18 @@
             "title": "Features",
             "type": "object"
           },
+          "illumination_difference": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "physical_hybrid_v1: |różnica ułamków widoczności Słońca|.",
+            "title": "Illumination Difference"
+          },
           "illumination_distance": {
             "anyOf": [
               {
@@ -216,6 +239,17 @@
               }
             ],
             "title": "Illumination Status"
+          },
+          "illumination_weight_applied": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Illumination Weight Applied"
           },
           "lat": {
             "title": "Lat",
@@ -333,6 +367,30 @@
             "description": "Etykieta składnika (odległość < 0.5 good, < 1.0 moderate, dalej poor); ustawiona razem z terrain_distance.",
             "title": "Terrain Quality"
           },
+          "terrain_weight_applied": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "physical_hybrid_v1: waga użyta po renormalizacji.",
+            "title": "Terrain Weight Applied"
+          },
+          "thermal_difference_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "physical_hybrid_v1: |różnica zakresu temperatur| w K.",
+            "title": "Thermal Difference K"
+          },
           "thermal_distance": {
             "anyOf": [
               {
@@ -374,6 +432,17 @@
               }
             ],
             "title": "Thermal Status"
+          },
+          "thermal_weight_applied": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thermal Weight Applied"
           },
           "total_distance": {
             "description": "Mniejsza = bardziej podobny teren.",
@@ -453,6 +522,28 @@
           "moon": {
             "$ref": "#/components/schemas/MoonQuery"
           },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Profil wag składników (default, rover_mobility, thermal_hardware, solar_operations, geology_isru); tylko physical_hybrid_v1, zastępuje w_thermal/w_illum/w_composition.",
+            "title": "Profile"
+          },
+          "scoring_method": {
+            "default": "legacy_percentile",
+            "description": "legacy_percentile: z-score/percentyl dla wszystkich składników. physical_hybrid_v1: teren = RMS różnic fizycznych / stałe skale, termika = różnica zakresu w K, oświetlenie = |różnica ułamków|, skład = |różnica percentyli ciała|; suma = średnia ważona (brak danych = składnik wypada; łatki bez danych termicznych są pomijane, gdy termika jest włączona).",
+            "enum": [
+              "legacy_percentile",
+              "physical_hybrid_v1"
+            ],
+            "title": "Scoring Method",
+            "type": "string"
+          },
           "stability_runs": {
             "default": 0,
             "description": "Liczba przebiegów z szumem na cechach Księżyca (0 = wyłączone); wypełnia Analog.stability.",
@@ -510,6 +601,18 @@
       "AnalogsResponse": {
         "additionalProperties": false,
         "properties": {
+          "distance_config_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Wersja skal odległości (physical_hybrid_v1).",
+            "title": "Distance Config Version"
+          },
           "feature_weights": {
             "anyOf": [
               {
@@ -546,12 +649,32 @@
             "title": "Out Of Range",
             "type": "array"
           },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile"
+          },
           "results": {
             "items": {
               "$ref": "#/components/schemas/Analog"
             },
             "title": "Results",
             "type": "array"
+          },
+          "scoring_method": {
+            "default": "legacy_percentile",
+            "enum": [
+              "legacy_percentile",
+              "physical_hybrid_v1"
+            ],
+            "title": "Scoring Method",
+            "type": "string"
           },
           "top_k": {
             "title": "Top K",

@@ -1,0 +1,9 @@
+version: "scoring-profiles-v1"
+
+# Component weights must sum to 1. A missing component drops out and the rest renormalise.
+profiles:
+  default:           {terrain: 0.70, thermal: 0.15, illumination: 0.10, composition: 0.05}
+  rover_mobility:    {terrain: 0.85, thermal: 0.05, illumination: 0.10, composition: 0.00}
+  thermal_hardware:  {terrain: 0.30, thermal: 0.60, illumination: 0.10, composition: 0.00}
+  solar_operations:  {terrain: 0.45, thermal: 0.15, illumination: 0.40, composition: 0.00}
+  geology_isru:      {terrain: 0.45, thermal: 0.05, illumination: 0.05, composition: 0.45}

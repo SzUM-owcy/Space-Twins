@@ -33,6 +33,7 @@ from config import (
 from src.morphometry import extract_patch_features
 from src.plotting import load_earth_patch
 from src.practicality import practicality_blocks
+from src.distance import load_profile
 from src.query import OUT_OF_RANGE_Z, find_analogs, moon_patch_for, rank_stability
 from src.scoring import fit_scaler, transform
 
@@ -255,6 +256,18 @@ def _moon_thermal(site_id: str | None, lat: float, lon: float) -> float | None:
         return None
 
 
+def _moon_thermal_swing_k(site_id: str | None, lat: float, lon: float) -> float | None:
+    """Zakres temperatur powierzchni Księżyca w K (tabela albo na żywo z Diviner); None = brak danych."""
+    if site_id is not None:
+        return _site_value(THERMAL_MOON_PATH, site_id, "surface_temperature_range_k")
+    try:
+        from src.moon_temperature import moon_cell_stats
+
+        return float(moon_cell_stats(lat, lon)["surface_temperature_range_k"])
+    except Exception:
+        return None
+
+
 def _moon_composition(site_id: str | None, lat: float, lon: float) -> tuple[float | None, str]:
     """(mafic_felsic_percentile, status) Księżyca: tabela albo na żywo z mapy Diviner CF."""
     if site_id is not None:
@@ -293,17 +306,24 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
     patch, site_id, name, lat, lon = _moon_patch(req.moon)
     features = extract_patch_features(patch, PIXEL_SIZE_M)
     earth = earth_index()
-    moon_thermal = _moon_thermal(site_id, lat, lon) if req.w_thermal > 0 else None
-    moon_illum = _moon_illumination(site_id, lat, lon) if req.w_illum > 0 else None
+    hybrid = req.scoring_method == "physical_hybrid_v1"
+    weights = load_profile(req.profile) if req.profile is not None else None
+    w_thermal, w_illum, w_comp = (
+        (weights["thermal"], weights["illumination"], weights["composition"]) if weights else (req.w_thermal, req.w_illum, req.w_composition)
+    )
+    moon_thermal = _moon_thermal(site_id, lat, lon) if w_thermal > 0 else None
+    moon_swing = _moon_thermal_swing_k(site_id, lat, lon) if hybrid and w_thermal > 0 else None
+    moon_illum = _moon_illumination(site_id, lat, lon) if w_illum > 0 else None
     from src.moon_composition import moon_minerals_for
 
     moon_minerals = moon_minerals_for(site_id, lat, lon)
-    moon_comp, moon_comp_status = _moon_composition(site_id, lat, lon) if req.w_composition > 0 else (None, None)
+    moon_comp, moon_comp_status = _moon_composition(site_id, lat, lon) if w_comp > 0 else (None, None)
     find_kwargs = dict(
         w_slope=req.w_slope, max_per_region=req.max_per_region,
-        moon_thermal_percentile=moon_thermal, earth_thermal=_table(THERMAL_EARTH_PATH), w_thermal=req.w_thermal,
-        moon_illumination=moon_illum, earth_illumination=_table(ILLUM_EARTH_PATH), w_illum=req.w_illum,
-        moon_composition=moon_comp, earth_composition=_table(COMPOSITION_EARTH_PATH), w_composition=req.w_composition,
+        moon_thermal_percentile=moon_thermal, earth_thermal=_table(THERMAL_EARTH_PATH), w_thermal=w_thermal,
+        moon_illumination=moon_illum, earth_illumination=_table(ILLUM_EARTH_PATH), w_illum=w_illum,
+        moon_composition=moon_comp, earth_composition=_table(COMPOSITION_EARTH_PATH), w_composition=w_comp,
+        scoring_method=req.scoring_method, component_weights=weights, moon_thermal_swing_k=moon_swing,
         earth_lithology=_table(COMPOSITION_EARTH_LITHOLOGY_PATH),
         earth_minerals=_table(COMPOSITION_EARTH_MINERALS_PATH), moon_minerals=moon_minerals,
         feature_weights=req.feature_weights,
@@ -334,6 +354,12 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
                 total_distance=float(row.total_distance),
                 terrain_distance=_opt(row, "terrain_distance"),
                 thermal_distance=_opt(row, "thermal_distance"),
+                thermal_difference_k=_opt(row, "thermal_difference_k"),
+                illumination_difference=_opt(row, "illumination_difference"),
+                terrain_weight_applied=_opt(row, "terrain_weight_applied"),
+                thermal_weight_applied=_opt(row, "thermal_weight_applied"),
+                illumination_weight_applied=_opt(row, "illumination_weight_applied"),
+                composition_weight_applied=_opt(row, "composition_weight_applied"),
                 thermal_status=_opt(row, "thermal_status"),
                 illumination_distance=_opt(row, "illumination_distance"),
                 illumination_status=_opt(row, "illumination_status"),
@@ -375,10 +401,13 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
             composition_status=moon_comp_status,
             minerals=None if moon_minerals is None else {k.replace("_fraction", ""): float(v) for k, v in moon_minerals.items()},
         ),
+        scoring_method=req.scoring_method,
+        distance_config_version=result.attrs.get("distance_config_version"),
+        profile=req.profile,
         w_slope=req.w_slope,
-        w_thermal=req.w_thermal,
-        w_illum=req.w_illum,
-        w_composition=req.w_composition,
+        w_thermal=w_thermal,
+        w_illum=w_illum,
+        w_composition=w_comp,
         feature_weights=req.feature_weights,
         top_k=req.top_k,
         max_per_region=req.max_per_region,
