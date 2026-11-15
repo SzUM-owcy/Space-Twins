@@ -1159,7 +1159,11 @@ button {
   width: 6px;
   height: 6px;
   background: var(--yonder);
-  animation: typing 1.1s ease-in-out infinite;
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+
+.msg[data-role='assistant'].typing > span {
+  margin-top: 0;
 }
 
 .typing span:nth-child(2) {
@@ -1168,6 +1172,19 @@ button {
 
 .typing span:nth-child(3) {
   animation-delay: 0.3s;
+}
+
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-7px);
+  }
 }
 
 @keyframes typing {
@@ -1251,7 +1268,7 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .typing span {
-    animation: none;
+    animation-name: typing;
   }
 
   .chat-ideas button {
