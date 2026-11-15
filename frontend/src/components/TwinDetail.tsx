@@ -112,10 +112,6 @@ export default function TwinDetail({
       {outOfRange.length > 0 && (
         <p className="warn">Some measurements of this place are more extreme than any Earth terrain we hold, so this ranking is less reliable.</p>
       )}
-      <p className="note">
-        Ranked mostly by terrain shape (slope and relief across 10 × 10 km patches, {analog.source}), with day–night temperature swing and sunlight as smaller factors.
-        Swing and sunlight are compared by rank within each body, so the raw numbers differ. Earth minerals are estimated from rock maps and do not affect the ranking.
-      </p>
     </section>
   )
 }
