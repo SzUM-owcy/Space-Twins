@@ -37,7 +37,11 @@ export const loadMoonPatch = (siteId: string) => fetchPatch(`moon:${siteId}`, `/
 
 export const loadEarthPatch = (patchId: string) => fetchPatch(`earth:${patchId}`, `/earth/patches/${encodeURIComponent(patchId)}`)
 
-// One result per region keeps the five pins spread across the globe.
+// One result per region keeps the pins spread across the globe. The API returns PIN_COUNT + extra candidates
+// (same ranking, longer list) so the Pareto chart has more points to compare; the globe uses the first PIN_COUNT.
+export const PIN_COUNT = 5
+const CANDIDATE_COUNT = 20
+
 export async function loadAnalogs(siteId: string): Promise<AnalogsResponse> {
   const cached = analogCache.get(siteId)
   if (cached) return cached
@@ -47,7 +51,7 @@ export async function loadAnalogs(siteId: string): Promise<AnalogsResponse> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Terrain 60%, temperature swing 20%, sunlight 20%. Rock composition is shown but not ranked on.
-      body: JSON.stringify({ moon: { site_id: siteId }, top_k: 5, max_per_region: 1, w_thermal: 0.2, w_illum: 0.2 }),
+      body: JSON.stringify({ moon: { site_id: siteId }, top_k: CANDIDATE_COUNT, max_per_region: 1, w_thermal: 0.2, w_illum: 0.2, include_practicality: true }),
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
