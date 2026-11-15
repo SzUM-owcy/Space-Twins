@@ -76,7 +76,7 @@ export default function App() {
   const candidates = useMemo(() => twins?.results ?? [], [twins])
   const results = useMemo(() => candidates.slice(0, PIN_COUNT), [candidates])
   const activeTwin = candidates.find((a) => a.rank === activeRank) ?? null
-  // Keep a selected candidate outside the top pins available to the compare view.
+  // Keep a selected candidate outside the top pins available to the Explore Data view.
   const compareResults = activeTwin && activeTwin.rank > PIN_COUNT ? [...results, activeTwin] : results
 
   return (

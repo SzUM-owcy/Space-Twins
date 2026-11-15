@@ -189,6 +189,10 @@ button {
 }
 
 /* Detail */
+.twin-head {
+  padding: 24px 20px 0;
+}
+
 .detail {
   padding: 24px 20px 0;
 }
@@ -524,6 +528,7 @@ button {
 }
 
 .app[data-mode='pair'] .twins,
+.app[data-mode='pair'] .twin-head,
 .app[data-mode='pair'] .twin-detail {
   animation: ui-in 0.8s ease 1.5s both;
 }
@@ -596,8 +601,17 @@ button {
     padding: 0;
   }
 
+  .twin-head {
+    position: absolute;
+    z-index: 1;
+    top: var(--edge);
+    right: var(--edge);
+    width: 340px;
+    padding: 0;
+  }
+
   .twin-detail {
-    max-height: calc(100svh - 56px - 110px);
+    max-height: calc(100svh - 56px - 190px);
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--faint) transparent;
