@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { formatCoords } from '../sites'
 import type { Analog, MoonSummary } from '../types'
 import { MixBar, MixLegend, moonMix, normalise, type Mix } from './Minerals'
@@ -66,6 +66,9 @@ export default function TwinDetail({
   moonFeatures,
   outOfRange,
   onCompare,
+  tab,
+  onTab,
+  tradeoff,
 }: {
   analog: Analog
   count: number
@@ -74,6 +77,10 @@ export default function TwinDetail({
   moonFeatures: Record<string, number>
   outOfRange: string[]
   onCompare: () => void
+  tab: 'details' | 'tradeoff'
+  onTab: (tab: 'details' | 'tradeoff') => void
+  /** Pareto chart; the tab bar is shown only when this is provided. */
+  tradeoff?: ReactNode
 }) {
   const pct = (v: number | null | undefined) => (v == null ? undefined : v * 100)
   const rows: Row[] = [
@@ -103,6 +110,19 @@ export default function TwinDetail({
         </p>
       </header>
       <section className="detail twin-detail" aria-label={`${analog.region_name} compared with ${moonName}`}>
+      {tradeoff && (
+        <div className="panel-tabs" role="tablist" aria-label="Match information">
+          {(['details', 'tradeoff'] as const).map((id) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => onTab(id)}>
+              {id === 'details' ? 'Details' : 'Trade-off'}
+            </button>
+          ))}
+        </div>
+      )}
+      {tradeoff && tab === 'tradeoff' ? (
+        tradeoff
+      ) : (
+        <>
       <table className="compare">
         <thead>
           <tr>
@@ -147,6 +167,8 @@ export default function TwinDetail({
       </button>
       {outOfRange.length > 0 && (
         <p className="warn">Some measurements of this place are more extreme than any Earth terrain we hold, so this ranking is less reliable.</p>
+      )}
+        </>
       )}
     </section>
     </Fragment>

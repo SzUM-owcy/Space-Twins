@@ -149,10 +149,22 @@ export default function ParetoChart({
         <li data-state="other">Other candidate</li>
         <li data-state="excluded">Excluded</li>
       </ul>
-      <p className="note">
-        Practicality does not change the ranking. A best trade-off has no other candidate that is both closer and easier to run. Compared only
-        among these {points.length} candidates; some access and power values are estimates.
-      </p>
+      <details className="pareto-help" open>
+        <summary>How to read this</summary>
+        <ul>
+          <li>Each dot is a candidate place on Earth. Higher means its terrain is a closer match to the Moon site.</li>
+          <li>Further right means it is easier and cheaper to run a simulation there (access, buildability, medical help, power).</li>
+          <li>
+            Yellow dots are the best trade-offs: no other candidate is both closer and easier. The dashed line joins them. Pick one
+            if you want a good match without a hard logistics problem.
+          </li>
+          <li>A red cross has a hard constraint, such as a strict protected area. It stays visible but needs manual review.</li>
+        </ul>
+        <p>
+          Practicality never changes the ranking. Only these {points.length} candidates are compared, and some access and power
+          values are estimates.
+        </p>
+      </details>
     </section>
   )
 }

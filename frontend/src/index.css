@@ -1286,9 +1286,54 @@ button {
 
 /* Match vs. practicality (Pareto) */
 .pareto {
-  margin-top: 26px;
-  padding-top: 12px;
-  border-top: 1px solid var(--faint);
+  margin-top: 16px;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 18px;
+  border-bottom: 1px solid var(--faint);
+}
+
+.panel-tabs button {
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panel-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--signal);
+  color: var(--paper);
+}
+
+.pareto-help {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pareto-help summary {
+  cursor: pointer;
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.pareto-help ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.pareto-help li {
+  margin-top: 4px;
+}
+
+.pareto-help p {
+  margin-top: 8px;
 }
 
 .pareto-head {

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { formatCoords } from '../sites'
 import type { Analog } from '../types'
 
@@ -10,7 +9,6 @@ export default function TwinList({
   onHover,
   onSelect,
   onBack,
-  children,
 }: {
   moonName: string
   results: Analog[]
@@ -19,7 +17,6 @@ export default function TwinList({
   onHover: (rank: number | null) => void
   onSelect: (rank: number) => void
   onBack: () => void
-  children?: ReactNode
 }) {
   return (
     <nav className="index twins" aria-label="Closest places on Earth">
@@ -50,7 +47,6 @@ export default function TwinList({
           </li>
         ))}
       </ol>
-      {children}
     </nav>
   )
 }
