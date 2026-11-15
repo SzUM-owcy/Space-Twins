@@ -122,13 +122,6 @@ export default function App() {
               outOfRange={twins.out_of_range}
               onCompare={() => setCompareOpen(true)}
             />
-            <ParetoChart
-              candidates={candidates}
-              activeRank={activeRank}
-              hoveredRank={hoveredRank}
-              onHover={setHoveredRank}
-              onSelect={setActiveRank}
-            />
             <TwinList
               moonName={selected.name}
               results={results}
@@ -137,7 +130,15 @@ export default function App() {
               onHover={setHoveredRank}
               onSelect={setActiveRank}
               onBack={() => setMode('moon')}
-            />
+            >
+              <ParetoChart
+                candidates={candidates}
+                activeRank={activeRank}
+                hoveredRank={hoveredRank}
+                onHover={setHoveredRank}
+                onSelect={setActiveRank}
+              />
+            </TwinList>
           </>
         ) : (
           <>

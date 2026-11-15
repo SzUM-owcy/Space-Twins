@@ -524,7 +524,6 @@ button {
 }
 
 .app[data-mode='pair'] .twins,
-.app[data-mode='pair'] .pareto,
 .app[data-mode='pair'] .twin-detail {
   animation: ui-in 0.8s ease 1.5s both;
 }
@@ -595,6 +594,13 @@ button {
     bottom: 56px;
     width: 340px;
     padding: 0;
+  }
+
+  .twin-detail {
+    max-height: calc(100svh - 56px - 110px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--faint) transparent;
   }
 
   .credit {
@@ -1266,7 +1272,9 @@ button {
 
 /* Match vs. practicality (Pareto) */
 .pareto {
-  padding: 18px 20px 0;
+  margin-top: 26px;
+  padding-top: 12px;
+  border-top: 1px solid var(--faint);
 }
 
 .pareto-head {
@@ -1408,7 +1416,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 .chip {
