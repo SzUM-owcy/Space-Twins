@@ -112,6 +112,7 @@ export default function App() {
             <TwinDetail
               analog={activeTwin}
               count={results.length}
+              moon={twins.moon}
               moonName={selected.name}
               moonFeatures={selected.features}
               outOfRange={twins.out_of_range}

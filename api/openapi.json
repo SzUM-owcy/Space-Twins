@@ -318,6 +318,18 @@
             "title": "Slope Distance",
             "type": "number"
           },
+          "solar_visibility_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek dnia (Słońce nad horyzontem astronomicznym), gdy teren nie zasłania Słońca (0..1); null = brak danych.",
+            "title": "Solar Visibility Fraction"
+          },
           "source": {
             "enum": [
               "NASADEM",
@@ -417,6 +429,18 @@
               }
             ],
             "title": "Thermal Quality"
+          },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni łatki [K] (MODIS); null = brak danych. Tylko do wyświetlania.",
+            "title": "Thermal Range K"
           },
           "thermal_status": {
             "anyOf": [
@@ -711,6 +735,70 @@
         "title": "AnalogsResponse",
         "type": "object"
       },
+      "ChatMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessage",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "messages": {
+            "description": "Historia rozmowy; ostatnia wiadomoÅ›Ä‡ to pytanie (role=user).",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "moon_site_id": {
+            "examples": [
+              "moon_apollo_15"
+            ],
+            "title": "Moon Site Id",
+            "type": "string"
+          },
+          "selected_twin_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "patch_id dopasowania, ktÃ³re uÅ¼ytkownik ma teraz otwarte ('ten', 'this one').",
+            "title": "Selected Twin Id"
+          }
+        },
+        "required": [
+          "moon_site_id",
+          "messages"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
       "Constraints": {
         "additionalProperties": false,
         "description": "Ograniczenia wewnętrzne lokalizacji (flagi, nie wynik liczbowy).",
@@ -891,6 +979,7 @@
               "NOT_FOUND",
               "PATCH_REJECTED",
               "RASTER_UNAVAILABLE",
+              "CHAT_UNAVAILABLE",
               "INTERNAL_ERROR"
             ],
             "title": "Code",
@@ -1115,6 +1204,21 @@
             "title": "Lon",
             "type": "number"
           },
+          "minerals": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Udziały plagioklaz/piroksen/oliwin (Diviner, ±70°); null poza zasięgiem. Mogą wychodzić poza 0..1 - normalizuj w UI.",
+            "title": "Minerals"
+          },
           "name": {
             "description": "Nazwa do wyświetlenia, np. Apollo 11.",
             "title": "Name",
@@ -1124,6 +1228,30 @@
             "description": "= patch_id, np. moon_apollo_11.",
             "title": "Site Id",
             "type": "string"
+          },
+          "solar_visibility_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek dnia, gdy teren nie zasłania Słońca (0..1); null = brak danych.",
+            "title": "Solar Visibility Fraction"
+          },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni [K] (Diviner); null = brak danych.",
+            "title": "Thermal Range K"
           }
         },
         "required": [
@@ -1220,6 +1348,18 @@
             ],
             "description": "Ułamek czasu, gdy Słońce jest nad horyzontem terenu, albo null.",
             "title": "Solar Visibility Fraction"
+          },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni [K] (Diviner) dla miejsca z listy; null = brak danych albo własne współrzędne.",
+            "title": "Thermal Range K"
           },
           "thermal_range_percentile": {
             "anyOf": [
@@ -1638,6 +1778,64 @@
         "summary": "Post Analogs",
         "tags": [
           "analogs"
+        ]
+      }
+    },
+    "/api/v1/chat": {
+      "post": {
+        "description": "OdpowiedÅº asystenta (strumieÅ„ SSE) na pytanie o miejsce KsiÄ™Å¼yca i jego analogi.",
+        "operationId": "post_chat_api_v1_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "SSE: `delta` {text}, potem `done` albo `error` {message}."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Post Chat",
+        "tags": [
+          "chat"
         ]
       }
     },

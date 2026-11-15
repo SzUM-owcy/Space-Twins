@@ -19,6 +19,7 @@ ErrorCode = Literal[
     "NOT_FOUND",
     "PATCH_REJECTED",
     "RASTER_UNAVAILABLE",
+    "CHAT_UNAVAILABLE",
     "INTERNAL_ERROR",
 ]
 
@@ -68,6 +69,13 @@ class MoonSite(Model):
     lat: float
     lon: float = Field(description="Stopnie, wschód dodatni, -180..180.")
     features: dict[str, float]
+    thermal_range_k: float | None = Field(default=None, description="Surowy zakres dobowy temperatury powierzchni [K] (Diviner); null = brak danych.")
+    solar_visibility_fraction: float | None = Field(
+        default=None, description="Ułamek dnia, gdy teren nie zasłania Słońca (0..1); null = brak danych."
+    )
+    minerals: dict[str, float] | None = Field(
+        default=None, description="Udziały plagioklaz/piroksen/oliwin (Diviner, ±70°); null poza zasięgiem. Mogą wychodzić poza 0..1 - normalizuj w UI."
+    )
 
 
 class EarthRegion(Model):
@@ -188,6 +196,9 @@ class MoonSummary(Model):
     features: dict[str, float] = Field(description="Surowe wartości 12 cech.")
     z_scores: dict[str, float] = Field(description="Cechy po log1p + z-score względem indeksu Ziemi (CONTRACT §5).")
     thermal_range_percentile: float | None = Field(default=None, description="Percentyl zakresu temperatur (0..1) albo null.")
+    thermal_range_k: float | None = Field(
+        default=None, description="Surowy zakres dobowy temperatury powierzchni [K] (Diviner) dla miejsca z listy; null = brak danych albo własne współrzędne."
+    )
     solar_visibility_fraction: float | None = Field(default=None, description="Ułamek czasu, gdy Słońce jest nad horyzontem terenu, albo null.")
     mafic_felsic_percentile: float | None = Field(
         default=None, description="Percentyl składu mafic-felsic (0 = felsic, 1 = mafic) względem Księżyca albo null (np. bieguny)."
@@ -294,6 +305,12 @@ class Analog(Model):
     mixed_lithology_flag: bool | None = Field(default=None, description="True, gdy żadna klasa nie obejmuje >= 60% zmapowanych punktów łatki.")
     stability: float | None = Field(
         default=None, description="Ułamek przebiegów z szumem (stability_runs), w których łatka zostaje w top-K; null = nie liczone."
+    )
+    thermal_range_k: float | None = Field(
+        default=None, description="Surowy zakres dobowy temperatury powierzchni łatki [K] (MODIS); null = brak danych. Tylko do wyświetlania."
+    )
+    solar_visibility_fraction: float | None = Field(
+        default=None, description="Ułamek dnia (Słońce nad horyzontem astronomicznym), gdy teren nie zasłania Słońca (0..1); null = brak danych."
     )
     practicality: Practicality | None = Field(default=None, description="Tylko gdy include_practicality=true i tabela istnieje.")
     constraints: Constraints | None = None

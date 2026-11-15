@@ -1,3 +1,5 @@
+import type { MoonSite } from './types'
+
 export const COLORS = {
   void: '#07173F',
   rocket: '#E43700',
@@ -10,7 +12,6 @@ export type GroupId = 'apollo' | 'pole' | 'terrain'
 
 export const GROUPS: { id: GroupId; title: string; color: string }[] = [
   { id: 'apollo', title: 'Apollo landing sites', color: COLORS.rocket },
-  { id: 'pole', title: 'South pole', color: COLORS.yonder },
   { id: 'terrain', title: 'Craters, highlands and plains', color: COLORS.white },
 ]
 
@@ -52,15 +53,20 @@ export type DisplaySite = {
   lat: number
   lon: number
   features: Record<string, number>
+  thermalRangeK: number | null
+  sunlitFraction: number | null
+  minerals: MoonSite['minerals']
 }
 
-export function toDisplaySites(raw: { site_id: string; name: string; lat: number; lon: number; features: Record<string, number> }[]): DisplaySite[] {
+export function toDisplaySites(raw: MoonSite[]): DisplaySite[] {
   const known = Object.keys(SITE_INFO)
   const rank = (id: string) => {
     const i = known.indexOf(id)
     return i === -1 ? known.length : i
   }
+  // South pole sites are left out of the demo (no mineral data there).
   return raw
+    .filter((s) => SITE_INFO[s.site_id]?.group !== 'pole')
     .map((s) => {
       const info = SITE_INFO[s.site_id]
       return {
@@ -71,6 +77,9 @@ export function toDisplaySites(raw: { site_id: string; name: string; lat: number
         lat: s.lat,
         lon: s.lon,
         features: s.features,
+        thermalRangeK: s.thermal_range_k ?? null,
+        sunlitFraction: s.solar_visibility_fraction ?? null,
+        minerals: s.minerals ?? null,
       } satisfies DisplaySite
     })
     .sort((a, b) => rank(a.id) - rank(b.id))

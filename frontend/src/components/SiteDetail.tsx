@@ -1,4 +1,5 @@
 import { formatCoords, type DisplaySite } from '../sites'
+import { MixBar, MixLegend, moonMix } from './Minerals'
 
 function Figure({ label, value, unit }: { label: string; value: string; unit: string }) {
   return (
@@ -34,7 +35,18 @@ export default function SiteDetail({
             <Figure label="Height range" value={Math.round(site.features.relief_range).toLocaleString('en-US')} unit="m" />
             <Figure label="Median slope" value={site.features.slope_p50.toFixed(1)} unit="°" />
             <Figure label="Ruggedness" value={site.features.tri_mean.toFixed(1)} unit="m" />
+            {site.thermalRangeK !== null && <Figure label="Day–night swing" value={Math.round(site.thermalRangeK).toLocaleString('en-US')} unit="K" />}
+            {site.sunlitFraction !== null && <Figure label="Sunlit daytime" value={Math.round(site.sunlitFraction * 100).toString()} unit="%" />}
           </dl>
+          {moonMix(site.minerals) && (
+            <div className="rock site-rock">
+              <div className="rock-head">
+                <span>Minerals</span>
+              </div>
+              <MixBar label="Moon" mix={moonMix(site.minerals)} empty="Not mapped here" />
+              <MixLegend withOther={false} />
+            </div>
+          )}
           <button type="button" className="cta" onClick={onFind} disabled={finding}>
             {finding ? 'Searching Earth…' : 'Find Earth twins'}
           </button>
