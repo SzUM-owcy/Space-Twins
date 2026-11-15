@@ -1289,28 +1289,6 @@ button {
   margin-top: 16px;
 }
 
-.panel-tabs {
-  display: flex;
-  gap: 18px;
-  border-bottom: 1px solid var(--faint);
-}
-
-.panel-tabs button {
-  padding: 6px 0;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--muted);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.panel-tabs button[aria-selected='true'] {
-  border-bottom-color: var(--signal);
-  color: var(--paper);
-}
-
 .pareto-help {
   margin-top: 12px;
   color: var(--muted);
@@ -1493,4 +1471,112 @@ button {
 .chip[data-tone='warn'] {
   border-color: var(--rocket);
   color: var(--paper);
+}
+
+/* Trade-off tab in the Explore Data view */
+.tradeoff {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 40px;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--faint) transparent;
+}
+
+.tradeoff .pareto {
+  margin-top: 0;
+}
+
+.tradeoff .pareto svg {
+  max-height: 46vh;
+}
+
+.tradeoff-side h3 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 36px;
+  line-height: 1.05;
+}
+
+.tradeoff-cost {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.tradeoff-cost b {
+  color: var(--paper);
+}
+
+.scores {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scores li {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.scores li > :first-child {
+  color: var(--muted);
+}
+
+.scores b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-bar {
+  height: 6px;
+  background: var(--faint);
+}
+
+.score-bar i {
+  display: block;
+  height: 100%;
+  background: var(--signal);
+}
+
+.flag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flag-list li {
+  padding: 3px 8px;
+  border: 1px solid var(--faint);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.flag-list li[data-status='excluded'] {
+  border-color: var(--rocket);
+  color: var(--paper);
+}
+
+.tradeoff-note {
+  margin-top: 12px;
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 800px) {
+  .tradeoff {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
 }

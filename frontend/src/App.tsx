@@ -6,7 +6,6 @@ import SiteIndex from './components/SiteIndex'
 import SiteDetail from './components/SiteDetail'
 import TwinList from './components/TwinList'
 import TwinDetail from './components/TwinDetail'
-import ParetoChart from './components/ParetoChart'
 import CompareModal from './components/CompareModal'
 
 const MoonScene = lazy(() => import('./components/MoonScene'))
@@ -23,7 +22,6 @@ export default function App() {
   const [activeRank, setActiveRank] = useState(1)
   const [hoveredRank, setHoveredRank] = useState<number | null>(null)
   const [compareOpen, setCompareOpen] = useState(false)
-  const [rightTab, setRightTab] = useState<'details' | 'tradeoff'>('details')
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -67,7 +65,6 @@ export default function App() {
         setTwins(res)
         setActiveRank(1)
         setHoveredRank(null)
-        setRightTab('details')
         setMode('pair')
       })
       .catch(() => setFindError('Could not find matches. Check that the API is running and try again.'))
@@ -77,7 +74,6 @@ export default function App() {
   const inPair = mode === 'pair' && twins !== null && selected !== null
   const candidates = useMemo(() => twins?.results ?? [], [twins])
   const results = useMemo(() => candidates.slice(0, PIN_COUNT), [candidates])
-  const hasPracticality = candidates.some((a) => a.practicality)
   const activeTwin = candidates.find((a) => a.rank === activeRank) ?? null
   // Keep a selected candidate outside the top pins available to the Explore Data view.
   const compareResults = activeTwin && activeTwin.rank > PIN_COUNT ? [...results, activeTwin] : results
@@ -124,19 +120,6 @@ export default function App() {
               moonFeatures={selected.features}
               outOfRange={twins.out_of_range}
               onCompare={() => setCompareOpen(true)}
-              tab={rightTab}
-              onTab={setRightTab}
-              tradeoff={
-                hasPracticality ? (
-                  <ParetoChart
-                    candidates={candidates}
-                    activeRank={activeRank}
-                    hoveredRank={hoveredRank}
-                    onHover={setHoveredRank}
-                    onSelect={setActiveRank}
-                  />
-                ) : undefined
-              }
             />
             <TwinList
               moonName={selected.name}
@@ -160,6 +143,7 @@ export default function App() {
         <CompareModal
           moon={{ id: selected.id, name: selected.name, lat: selected.lat, lon: selected.lon }}
           results={compareResults}
+          candidates={candidates}
           activeRank={activeRank}
           onSelectRank={setActiveRank}
           onClose={() => setCompareOpen(false)}
