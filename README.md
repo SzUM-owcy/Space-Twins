@@ -11,6 +11,8 @@ not produce one opaque "Moon-likeness" number. It scores each dimension separate
 user-adjustable weights. A result can read: *strong terrain analog, moderate thermal analog, poor
 illumination analog*.
 
+![Space Twin demo (2x speed)](docs/media/demo.gif)
+
 The terrain comparison is the core. Both bodies are reduced to the same representation:
 
 ```text
