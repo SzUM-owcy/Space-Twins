@@ -284,6 +284,18 @@
             "title": "Slope Distance",
             "type": "number"
           },
+          "solar_visibility_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek dnia (Słońce nad horyzontem astronomicznym), gdy teren nie zasłania Słońca (0..1); null = brak danych.",
+            "title": "Solar Visibility Fraction"
+          },
           "source": {
             "enum": [
               "NASADEM",
@@ -359,6 +371,18 @@
               }
             ],
             "title": "Thermal Quality"
+          },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni łatki [K] (MODIS); null = brak danych. Tylko do wyświetlania.",
+            "title": "Thermal Range K"
           },
           "thermal_status": {
             "anyOf": [
@@ -992,6 +1016,21 @@
             "title": "Lon",
             "type": "number"
           },
+          "minerals": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Udziały plagioklaz/piroksen/oliwin (Diviner, ±70°); null poza zasięgiem. Mogą wychodzić poza 0..1 - normalizuj w UI.",
+            "title": "Minerals"
+          },
           "name": {
             "description": "Nazwa do wyświetlenia, np. Apollo 11.",
             "title": "Name",
@@ -1001,6 +1040,30 @@
             "description": "= patch_id, np. moon_apollo_11.",
             "title": "Site Id",
             "type": "string"
+          },
+          "solar_visibility_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ułamek dnia, gdy teren nie zasłania Słońca (0..1); null = brak danych.",
+            "title": "Solar Visibility Fraction"
+          },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni [K] (Diviner); null = brak danych.",
+            "title": "Thermal Range K"
           }
         },
         "required": [
@@ -1097,6 +1160,18 @@
             ],
             "description": "Ułamek czasu, gdy Słońce jest nad horyzontem terenu, albo null.",
             "title": "Solar Visibility Fraction"
+          },
+          "thermal_range_k": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Surowy zakres dobowy temperatury powierzchni [K] (Diviner) dla miejsca z listy; null = brak danych albo własne współrzędne.",
+            "title": "Thermal Range K"
           },
           "thermal_range_percentile": {
             "anyOf": [

@@ -46,7 +46,8 @@ export async function loadAnalogs(siteId: string): Promise<AnalogsResponse> {
     const res = await fetch(`${API_BASE}/api/v1/analogs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ moon: { site_id: siteId }, top_k: 5, max_per_region: 1 }),
+      // Terrain 60%, temperature swing 20%, sunlight 20%. Rock composition is shown but not ranked on.
+      body: JSON.stringify({ moon: { site_id: siteId }, top_k: 5, max_per_region: 1, w_thermal: 0.2, w_illum: 0.2 }),
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)

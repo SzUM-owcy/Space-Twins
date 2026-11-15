@@ -146,16 +146,34 @@ def meta() -> Meta:
 
 
 def moon_sites() -> list[MoonSite]:
-    return [
-        MoonSite(
-            site_id=row.patch_id,
-            name=_pretty(row.region),
-            lat=float(row.center_lat),
-            lon=float(row.center_lon),
-            features=_features(row),
+    from src.moon_composition import moon_minerals_for
+
+    thermal = _table(THERMAL_MOON_PATH)
+    illum = _table(ILLUM_MOON_PATH)
+    thermal_k = thermal.set_index("patch_id")["surface_temperature_range_k"] if thermal is not None else None
+    illum_fraction = illum.set_index("patch_id")["solar_visibility_fraction"] if illum is not None else None
+
+    def _lookup(series, patch_id: str) -> float | None:
+        if series is None or patch_id not in series.index or pd.isna(series[patch_id]):
+            return None
+        return float(series[patch_id])
+
+    sites = []
+    for _, row in moon_index().iterrows():
+        minerals = moon_minerals_for(row.patch_id, float(row.center_lat), float(row.center_lon))
+        sites.append(
+            MoonSite(
+                site_id=row.patch_id,
+                name=_pretty(row.region),
+                lat=float(row.center_lat),
+                lon=float(row.center_lon),
+                features=_features(row),
+                thermal_range_k=_lookup(thermal_k, row.patch_id),
+                solar_visibility_fraction=_lookup(illum_fraction, row.patch_id),
+                minerals=None if minerals is None else {k.replace("_fraction", ""): float(v) for k, v in minerals.items()},
+            )
         )
-        for _, row in moon_index().iterrows()
-    ]
+    return sites
 
 
 def earth_regions() -> list[EarthRegion]:
@@ -311,6 +329,16 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
     result = find_analogs(features, earth, top_k=req.top_k, **find_kwargs)
     stability = rank_stability(features, earth, result, req.stability_runs, **find_kwargs) if req.stability_runs else None
     by_id = earth.set_index("patch_id")
+    earth_thermal = _table(THERMAL_EARTH_PATH)
+    earth_illum = _table(ILLUM_EARTH_PATH)
+    thermal_k = earth_thermal.set_index("patch_id")["surface_temperature_range_k"] if earth_thermal is not None else None
+    illum_fraction = earth_illum.set_index("patch_id")["solar_visibility_fraction"] if earth_illum is not None else None
+
+    def _lookup(series, patch_id: str) -> float | None:
+        if series is None or patch_id not in series.index or pd.isna(series[patch_id]):
+            return None
+        return float(series[patch_id])
+
     blocks = {}
     if req.include_practicality:
         table = _table(PRACTICALITY_PATH)
@@ -355,6 +383,8 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
                 thermal_quality=_opt(row, "thermal_quality"),
                 illumination_quality=_opt(row, "illumination_quality"),
                 stability=None if stability is None else float(stability[row.patch_id]),
+                thermal_range_k=_lookup(thermal_k, row.patch_id),
+                solar_visibility_fraction=_lookup(illum_fraction, row.patch_id),
                 practicality=blocks.get(row.patch_id, {}).get("practicality"),
                 constraints=blocks.get(row.patch_id, {}).get("constraints"),
                 features=earth_features,
@@ -370,6 +400,7 @@ def analogs(req: AnalogsRequest) -> AnalogsResponse:
             features={k: float(v) for k, v in features.items()},
             z_scores=_z_scores(features),
             thermal_range_percentile=moon_thermal,
+            thermal_range_k=_site_value(THERMAL_MOON_PATH, site_id, "surface_temperature_range_k") if site_id is not None else None,
             solar_visibility_fraction=moon_illum,
             mafic_felsic_percentile=moon_comp,
             composition_status=moon_comp_status,
