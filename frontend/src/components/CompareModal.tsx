@@ -44,7 +44,7 @@ export default function CompareModal({
   const TABS = BASE_TABS.filter((t) => t.id !== 'tradeoff' || hasTradeoff)
   const [tab, setTab] = useState<TabId>('imagery')
   const [matched, setMatched] = useState(true)
-  const [exaggeration, setExaggeration] = useState(2)
+  const [exaggeration, setExaggeration] = useState(4)
   const chat = useChat(moon.id, analog?.patch_id ?? null)
 
   const needsTerrain = tab === 'terrain' || tab === 'terrain3d'
