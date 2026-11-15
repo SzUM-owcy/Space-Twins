@@ -524,6 +524,7 @@ button {
 }
 
 .app[data-mode='pair'] .twins,
+.app[data-mode='pair'] .pareto,
 .app[data-mode='pair'] .twin-detail {
   animation: ui-in 0.8s ease 1.5s both;
 }
@@ -1261,4 +1262,168 @@ button {
   .patch canvas {
     transition: none;
   }
+}
+
+/* Match vs. practicality (Pareto) */
+.pareto {
+  padding: 18px 20px 0;
+}
+
+.pareto-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.pareto h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.pareto-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.pareto-toggle button {
+  padding: 3px 8px;
+  border: 1px solid var(--faint);
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pareto-toggle button[aria-pressed='true'] {
+  border-color: var(--signal);
+  color: var(--paper);
+}
+
+.pareto svg {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  overflow: visible;
+}
+
+.pareto-frame {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: var(--faint);
+}
+
+.pareto-grid {
+  stroke: var(--faint);
+  stroke-dasharray: 2 4;
+  opacity: 0.5;
+}
+
+.pareto-tick,
+.pareto-axis {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.pareto-front {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+
+.pareto-point {
+  cursor: pointer;
+  outline: none;
+}
+
+.pareto-hit {
+  fill: transparent;
+}
+
+.pareto-dot {
+  fill: var(--muted);
+  stroke: var(--void);
+  stroke-width: 1;
+}
+
+.pareto-point[data-state='pareto'] .pareto-dot {
+  fill: var(--signal);
+}
+
+.pareto-cross {
+  stroke: var(--rocket);
+  stroke-width: 2;
+  fill: none;
+}
+
+.pareto-point[data-active='true'] .pareto-dot,
+.pareto-point[data-hover='true'] .pareto-dot,
+.pareto-point:focus-visible .pareto-dot {
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+
+.pareto-focus {
+  min-height: 1.4em;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.pareto-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pareto-legend li::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.pareto-legend li[data-state='pareto']::before {
+  background: var(--signal);
+}
+
+.pareto-legend li[data-state='excluded']::before {
+  background: var(--rocket);
+  border-radius: 0;
+  transform: rotate(45deg) scale(0.8);
+}
+
+/* Cost chip and flags in the match details */
+.cost {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.chip {
+  padding: 3px 8px;
+  border: 1px solid var(--faint);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chip[data-tone='good'] {
+  border-color: var(--signal);
+  color: var(--paper);
+}
+
+.chip[data-tone='warn'] {
+  border-color: var(--rocket);
+  color: var(--paper);
 }

@@ -224,7 +224,11 @@ the sensible trade-offs; the rest are dominated by another site that is better o
 - Reading the plot: x = practical score (right = easier/cheaper), y = analog distance with the axis inverted
   (up = better), so the best sites are in the top right; green = Pareto-optimal.
 
-The Streamlit app does not show these blocks yet; the data is in the API/CLI output.
+**Web frontend** (`frontend/`): the match panel shows a "Match vs. practicality" chart for the 20 best
+candidates (yellow = best trade-off, red cross = excluded, dashed line = the front) with a field/facility toggle;
+clicking a point selects that site. The globe pins and the list still show the top 5 by scientific distance. The
+selected site also gets cost chips (field/facility cost class) and review/excluded flags. It is hidden when the
+practicality data is not available. The Streamlit app does not show these blocks; the data is in the API/CLI output.
 
 ### Streamlit app and HTTP API
 
