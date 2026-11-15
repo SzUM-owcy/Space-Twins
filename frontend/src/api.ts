@@ -60,3 +60,48 @@ export async function loadAnalogs(siteId: string): Promise<AnalogsResponse> {
   analogCache.set(siteId, data)
   return data
 }
+
+export type ChatTurn = { role: 'user' | 'assistant'; content: string }
+
+// Reads the server-sent events of POST /chat and calls onDelta for every piece of the answer.
+export async function streamChat(
+  body: { siteId: string; twinId: string | null; messages: ChatTurn[] },
+  onDelta: (text: string) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/v1/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ moon_site_id: body.siteId, selected_twin_id: body.twinId, messages: body.messages }),
+      signal,
+    })
+  } catch (e) {
+    if (signal.aborted) throw e
+    throw new Error('Cannot reach the server. Is the API running?')
+  }
+  if (!res.ok || !res.body) {
+    const detail = (await res.json().catch(() => null)) as { message?: string } | null
+    throw new Error(detail?.message ?? `The assistant is unavailable (HTTP ${res.status}).`)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const events = buffer.split('\n\n')
+    buffer = events.pop() ?? ''
+    for (const raw of events) {
+      const name = /^event: (.+)$/m.exec(raw)?.[1]
+      const data = /^data: (.+)$/m.exec(raw)?.[1]
+      if (!name || !data) continue
+      const payload = JSON.parse(data) as { text?: string; message?: string }
+      if (name === 'delta' && payload.text) onDelta(payload.text)
+      if (name === 'error') throw new Error(payload.message ?? 'The assistant did not answer.')
+    }
+  }
+}

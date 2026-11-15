@@ -30,6 +30,19 @@ CORS jest otwarty dla `http://localhost:*` i `http://127.0.0.1:*` (Vite, CRA itd
 | GET | `/earth/regions` | `EarthRegion[]` | Regiony Ziemi (bbox, flaga `validation`, liczba łatek) - do mapy |
 | GET | `/earth/patches/{patch_id}` | `PatchGrid` | Siatka wysokości 85x85 łatki Ziemi |
 | POST | `/analogs` | `AnalogsResponse` | Ranking analogów na Ziemi dla miejsca na Księżycu |
+| POST | `/chat` | strumień SSE | Asystent (Gemini) odpowiadający na pytania o miejsce Księżyca i jego analogi |
+
+### `POST /chat`
+
+```json
+{ "moon_site_id": "moon_apollo_15", "selected_twin_id": "earth_rio_grande_gorge_0004",
+  "messages": [{ "role": "user", "content": "Which match is best for a field campaign?" }] }
+```
+
+- Front wysyła tylko identyfikator miejsca, opcjonalnie `patch_id` otwartego dopasowania (żeby "this one" miało sens) i historię rozmowy (ostatnia wiadomość od `user`, maks. 2000 znaków; backend bierze ostatnie 12). Kontekst (cechy, temperatura, oświetlenie, minerały, practicality, constraints dla 5 dopasowań, stałe wagi 0.6/0.2/0.2) składa backend.
+- Odpowiedź `200` to `text/event-stream`: zdarzenia `delta` (`{"text": "..."}`), na końcu `done` albo `error` (`{"message": "..."}`, tekst do pokazania w UI).
+- Błędy przed startem strumienia mają standardowy kształt: `404` (nieznane miejsce), `422`, `503` z `CHAT_UNAVAILABLE` (brak `GOOGLE_API_KEY`).
+- Konfiguracja w `.env` (poza gitem; wzór w `.env.example`): `GOOGLE_API_KEY` (Google AI Studio), opcjonalnie `GEMINI_MODEL` (domyślnie `gemini-3.1-flash-lite`). Bot odpowiada po angielsku, wyłącznie z danych, i odmawia pytań spoza tematu.
 
 ### `POST /analogs`
 

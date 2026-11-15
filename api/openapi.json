@@ -612,6 +612,70 @@
         "title": "AnalogsResponse",
         "type": "object"
       },
+      "ChatMessage": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessage",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "messages": {
+            "description": "Historia rozmowy; ostatnia wiadomość to pytanie (role=user).",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "moon_site_id": {
+            "examples": [
+              "moon_apollo_15"
+            ],
+            "title": "Moon Site Id",
+            "type": "string"
+          },
+          "selected_twin_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "patch_id dopasowania, które użytkownik ma teraz otwarte ('ten', 'this one').",
+            "title": "Selected Twin Id"
+          }
+        },
+        "required": [
+          "moon_site_id",
+          "messages"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
       "Constraints": {
         "additionalProperties": false,
         "description": "Ograniczenia wewnętrzne lokalizacji (flagi, nie wynik liczbowy).",
@@ -792,6 +856,7 @@
               "NOT_FOUND",
               "PATCH_REJECTED",
               "RASTER_UNAVAILABLE",
+              "CHAT_UNAVAILABLE",
               "INTERNAL_ERROR"
             ],
             "title": "Code",
@@ -1590,6 +1655,64 @@
         "summary": "Post Analogs",
         "tags": [
           "analogs"
+        ]
+      }
+    },
+    "/api/v1/chat": {
+      "post": {
+        "description": "Odpowiedź asystenta (strumień SSE) na pytanie o miejsce Księżyca i jego analogi.",
+        "operationId": "post_chat_api_v1_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "SSE: `delta` {text}, potem `done` albo `error` {message}."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Post Chat",
+        "tags": [
+          "chat"
         ]
       }
     },

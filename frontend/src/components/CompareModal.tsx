@@ -4,6 +4,7 @@ import { RAMP_CSS, sharedRange } from '../terrain'
 import type { Analog } from '../types'
 import { usePatchGrid } from '../usePatchGrid'
 import PatchImage from './PatchImage'
+import Chat, { useChat } from './Chat'
 import TerrainMap from './TerrainMap'
 
 const Terrain3D = lazy(() => import('./Terrain3D'))
@@ -12,6 +13,7 @@ const TABS = [
   { id: 'imagery', label: 'Imagery' },
   { id: 'terrain', label: 'Terrain' },
   { id: 'terrain3d', label: '3D terrain' },
+  { id: 'ask', label: 'Ask' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -36,8 +38,9 @@ export default function CompareModal({
   const [tab, setTab] = useState<TabId>('imagery')
   const [matched, setMatched] = useState(true)
   const [exaggeration, setExaggeration] = useState(2)
+  const chat = useChat(moon.id, analog?.patch_id ?? null)
 
-  const needsTerrain = tab !== 'imagery'
+  const needsTerrain = tab === 'terrain' || tab === 'terrain3d'
   const moonGrid = usePatchGrid('moon', moon.id, needsTerrain)
   const earthGrid = usePatchGrid('earth', analog?.patch_id ?? '', needsTerrain && !!analog)
   const range = sharedRange(moonGrid.grid, earthGrid.grid)
@@ -53,6 +56,7 @@ export default function CompareModal({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return
       const i = results.findIndex((a) => a.rank === activeRank)
       if (e.key === 'ArrowRight' && i < results.length - 1) onSelectRank(results[i + 1].rank)
       if (e.key === 'ArrowLeft' && i > 0) onSelectRank(results[i - 1].rank)
@@ -65,6 +69,14 @@ export default function CompareModal({
 
   const moonSide = { title: moon.name, lat: moon.lat, lon: moon.lon, state: moonGrid }
   const earthSide = { title: analog.region_name, lat: analog.lat, lon: analog.lon, state: earthGrid }
+  const first = results[0].region_name
+  const suggestions = [
+    `Why is ${first} the closest match?`,
+    'Which match is best for a field campaign?',
+    'Which matches have legal or protection issues?',
+    `How do the minerals of ${first} compare with ${moon.name}?`,
+    'Which match would you avoid, and why?',
+  ]
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="compare-title" tabIndex={-1} ref={dialogRef}>
@@ -78,17 +90,20 @@ export default function CompareModal({
             </button>
           ))}
         </div>
-        <div className="modal-main">
-        <header className="modal-bar">          <ol className="picks" aria-label="Earth matches">
-            {results.map((a) => (
-              <li key={a.patch_id}>
-                <button type="button" className="pick" aria-current={a.rank === activeRank} onClick={() => onSelectRank(a.rank)}>
-                  <b>{a.rank}</b>
-                  <span>{a.region_name}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
+        <div className="modal-main" data-bare={tab === 'ask' || undefined}>
+        <header className="modal-bar">
+          {tab !== 'ask' && (
+            <ol className="picks" aria-label="Earth matches">
+              {results.map((a) => (
+                <li key={a.patch_id}>
+                  <button type="button" className="pick" aria-current={a.rank === activeRank} onClick={() => onSelectRank(a.rank)}>
+                    <b>{a.rank}</b>
+                    <span>{a.region_name}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
           <button type="button" className="modal-close" onClick={onClose}>
             Close
           </button>
@@ -102,6 +117,7 @@ export default function CompareModal({
             </>
           )}
           {tab === 'terrain' && <TerrainMap moon={moonSide} earth={earthSide} range={range} />}
+          {tab === 'ask' && <Chat moonName={moon.name} suggestions={suggestions} chat={chat} />}
           {tab === 'terrain3d' && (
             <Suspense fallback={null}>
               <Terrain3D moon={moonSide} earth={earthSide} range={range} exaggeration={exaggeration} />
@@ -114,6 +130,10 @@ export default function CompareModal({
             <p className="sources">
               Moon: NASA LRO camera. Earth: Esri, Maxar, Earthstar Geographics.
               {matched ? ' Both at about 100 m per pixel.' : ' Earth in full detail.'}
+            </p>
+          ) : tab === 'ask' ? (
+            <p className="sources">
+              The assistant reads the data for this place and its five matches, including logistics and protection flags that are not shown elsewhere. It can be wrong: check numbers that matter.
             </p>
           ) : (
             <div className="legend">

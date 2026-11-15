@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 
 from src.query import PatchRejected
 
-from . import service
+from . import chat, service
 from .schemas import (
     AnalogsRequest,
     AnalogsResponse,
@@ -126,3 +126,4 @@ def post_analogs(req: AnalogsRequest) -> AnalogsResponse:
 
 
 app.include_router(router)
+app.include_router(chat.router, prefix=API_PREFIX)
