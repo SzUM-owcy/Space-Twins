@@ -1,18 +1,11 @@
-import { useState } from 'react'
 import type { Analog } from '../types'
-
-type Profile = 'field' | 'facility'
+import { PROFILES, type Profile } from '../profiles'
 
 const W = 320
 const H = 230
 const PAD = { l: 38, r: 12, t: 12, b: 38 }
 const PLOT_W = W - PAD.l - PAD.r
 const PLOT_H = H - PAD.t - PAD.b
-
-const PROFILES: Record<Profile, { label: string; hint: string }> = {
-  field: { label: 'Field campaign', hint: 'short rover and instrument tests' },
-  facility: { label: 'Facility', hint: 'repeated campaigns and habitat tests' },
-}
 
 type Point = { a: Analog; x: number; d: number; pareto: boolean; excluded: boolean }
 
@@ -34,19 +27,20 @@ function toPoints(candidates: Analog[], profile: Profile): Point[] {
 }
 
 export default function ParetoChart({
+  profile,
   candidates,
   activeRank,
   hoveredRank,
   onHover,
   onSelect,
 }: {
+  profile: Profile
   candidates: Analog[]
   activeRank: number
   hoveredRank: number | null
   onHover: (rank: number | null) => void
   onSelect: (rank: number) => void
 }) {
-  const [profile, setProfile] = useState<Profile>('field')
   const points = toPoints(candidates, profile)
   if (points.length < 2) return null
 
@@ -60,17 +54,7 @@ export default function ParetoChart({
 
   return (
     <section className="pareto" aria-label="Scientific match versus practicality">
-      <div className="pareto-head">
-        <h3>Match vs. practicality</h3>
-        <div className="pareto-toggle" role="group" aria-label="Practicality profile">
-          {(Object.keys(PROFILES) as Profile[]).map((id) => (
-            <button key={id} type="button" aria-pressed={id === profile} onClick={() => setProfile(id)}>
-              {PROFILES[id].label}
-            </button>
-          ))}
-        </div>
-      </div>
-
+      <h3 className="pareto-title">Match vs. practicality</h3>
       <svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`Candidates: ${PROFILES[profile].hint}`}>
         <rect x={PAD.l} y={PAD.t} width={PLOT_W} height={PLOT_H} className="pareto-frame" />
         {[0, 25, 50, 75, 100].map((t) => (

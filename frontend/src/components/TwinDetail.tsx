@@ -28,36 +28,6 @@ const LITHOLOGY: Record<string, string> = {
   unconsolidated: 'Loose sediment',
 }
 
-const FLAG_NAMES: Record<string, string> = {
-  protected_area_status: 'protected area',
-  world_heritage_status: 'World Heritage',
-  biodiversity_status: 'habitat',
-  water_stress_status: 'water',
-  hazard_status: 'hazard',
-  security_status: 'security',
-}
-
-// Cost and flags from the practicality layer; they never affect the ranking.
-function CostChips({ analog }: { analog: Analog }) {
-  const p = analog.practicality
-  const c = analog.constraints
-  if (!p && !c) return null
-  const excluded = c ? Object.entries(FLAG_NAMES).filter(([k]) => c[k as keyof typeof c] === 'excluded').map(([, n]) => n) : []
-  // Community rights is always "manual review" by design, so it is not listed here.
-  const review = c
-    ? Object.entries(FLAG_NAMES).filter(([k]) => ['manual_review', 'warning'].includes(c[k as keyof typeof c] as string)).map(([, n]) => n)
-    : []
-  const tone = (cls?: string | null) => (cls === 'LOW' ? 'good' : cls === 'HIGH' || cls === 'VERY HIGH' || cls?.startsWith('EXCLUDED') ? 'warn' : undefined)
-  return (
-    <div className="cost" aria-label="Cost to run a simulation here">
-      {p?.field_cost_class && !c?.hard_excluded && <span className="chip" data-tone={tone(p.field_cost_class)}>Field: {p.field_cost_class.toLowerCase()}</span>}
-      {p?.facility_cost_class && !c?.hard_excluded && <span className="chip" data-tone={tone(p.facility_cost_class)}>Facility: {p.facility_cost_class.toLowerCase()}</span>}
-      {c?.hard_excluded && <span className="chip" data-tone="warn">Excluded: {excluded.join(', ') || 'needs manual review'}</span>}
-      {review.length > 0 && <span className="chip">Review: {review.join(', ')}</span>}
-    </div>
-  )
-}
-
 export default function TwinDetail({
   analog,
   count,
@@ -139,8 +109,6 @@ export default function TwinDetail({
           <MixLegend />
         </div>
       )}
-
-      <CostChips analog={analog} />
 
       <button type="button" className="cta" onClick={onCompare}>
         Explore Data

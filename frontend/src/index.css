@@ -610,12 +610,6 @@ button {
     padding: 0;
   }
 
-  .twin-detail {
-    max-height: calc(100svh - 56px - 190px);
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--faint) transparent;
-  }
 
   .credit {
     position: absolute;
@@ -1314,37 +1308,10 @@ button {
   margin-top: 8px;
 }
 
-.pareto-head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.pareto h3 {
+.pareto-title {
   font-size: 13px;
   font-weight: 600;
   color: var(--muted);
-}
-
-.pareto-toggle {
-  display: flex;
-  gap: 4px;
-}
-
-.pareto-toggle button {
-  padding: 3px 8px;
-  border: 1px solid var(--faint);
-  background: none;
-  color: var(--muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.pareto-toggle button[aria-pressed='true'] {
-  border-color: var(--signal);
-  color: var(--paper);
 }
 
 .pareto svg {
@@ -1448,37 +1415,55 @@ button {
   transform: rotate(45deg) scale(0.8);
 }
 
-/* Cost chip and flags in the match details */
-.cost {
+/* Trade-off tab in the Explore Data view */
+.tradeoff-wrap {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
+  flex-direction: column;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
 }
 
-.chip {
-  padding: 3px 8px;
+.profile-toggle {
+  display: flex;
+  gap: 12px;
+}
+
+.profile-toggle button {
+  display: grid;
+  gap: 2px;
+  padding: 10px 20px;
   border: 1px solid var(--faint);
-  font-size: 12px;
+  background: none;
   color: var(--muted);
+  text-align: left;
+  cursor: pointer;
 }
 
-.chip[data-tone='good'] {
+.profile-toggle button span {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.profile-toggle button small {
+  font-size: 13px;
+}
+
+.profile-toggle button[aria-pressed='true'] {
   border-color: var(--signal);
   color: var(--paper);
 }
 
-.chip[data-tone='warn'] {
-  border-color: var(--rocket);
+.profile-toggle button:hover {
   color: var(--paper);
 }
 
-/* Trade-off tab in the Explore Data view */
 .tradeoff {
+  margin-top: 40px;
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: 40px;
-  align-self: stretch;
+  flex: 1;
   width: 100%;
   min-height: 0;
   overflow-y: auto;

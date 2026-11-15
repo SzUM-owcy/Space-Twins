@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Analog, FlagStatus } from '../types'
+import { PROFILES, type Profile } from '../profiles'
 import ParetoChart from './ParetoChart'
 
 const SCORES = [
@@ -80,12 +81,23 @@ export default function TradeoffView({
   activeRank: number
   onSelect: (rank: number) => void
 }) {
+  const [profile, setProfile] = useState<Profile>('field')
   const [hovered, setHovered] = useState<number | null>(null)
   const active = candidates.find((a) => a.rank === activeRank) ?? candidates[0]
   return (
-    <div className="tradeoff">
-      <ParetoChart candidates={candidates} activeRank={activeRank} hoveredRank={hovered} onHover={setHovered} onSelect={onSelect} />
-      {active && <Selected analog={active} />}
+    <div className="tradeoff-wrap">
+      <div className="profile-toggle" role="group" aria-label="Practicality profile">
+        {(Object.keys(PROFILES) as Profile[]).map((id) => (
+          <button key={id} type="button" aria-pressed={id === profile} onClick={() => setProfile(id)}>
+            <span>{PROFILES[id].label}</span>
+            <small>{PROFILES[id].hint}</small>
+          </button>
+        ))}
+      </div>
+      <div className="tradeoff">
+        <ParetoChart profile={profile} candidates={candidates} activeRank={activeRank} hoveredRank={hovered} onHover={setHovered} onSelect={onSelect} />
+        {active && <Selected analog={active} />}
+      </div>
     </div>
   )
 }
