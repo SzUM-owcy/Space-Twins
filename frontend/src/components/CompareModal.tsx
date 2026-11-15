@@ -6,35 +6,42 @@ import { usePatchGrid } from '../usePatchGrid'
 import PatchImage from './PatchImage'
 import Chat, { useChat } from './Chat'
 import TerrainMap from './TerrainMap'
+import TradeoffView from './TradeoffView'
 
 const Terrain3D = lazy(() => import('./Terrain3D'))
 
-const TABS = [
+const BASE_TABS = [
   { id: 'imagery', label: 'Imagery' },
   { id: 'terrain', label: 'Terrain' },
   { id: 'terrain3d', label: '3D terrain' },
+  { id: 'tradeoff', label: 'Trade-off' },
   { id: 'ask', label: 'Ask' },
 ] as const
 
-type TabId = (typeof TABS)[number]['id']
+type TabId = (typeof BASE_TABS)[number]['id']
 
 const EXAGGERATIONS = [1, 2, 4]
 
 export default function CompareModal({
   moon,
   results,
+  candidates,
   activeRank,
   onSelectRank,
   onClose,
 }: {
   moon: { id: string; name: string; lat: number; lon: number }
   results: Analog[]
+  /** All ranked candidates; the Trade-off tab needs practicality data on them. */
+  candidates: Analog[]
   activeRank: number
   onSelectRank: (rank: number) => void
   onClose: () => void
 }) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  const analog = results.find((a) => a.rank === activeRank) ?? results[0]
+  const analog = results.find((a) => a.rank === activeRank) ?? candidates.find((a) => a.rank === activeRank) ?? results[0]
+  const hasTradeoff = candidates.filter((a) => a.practicality).length >= 2
+  const TABS = BASE_TABS.filter((t) => t.id !== 'tradeoff' || hasTradeoff)
   const [tab, setTab] = useState<TabId>('imagery')
   const [matched, setMatched] = useState(true)
   const [exaggeration, setExaggeration] = useState(2)
@@ -57,13 +64,14 @@ export default function CompareModal({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return
-      const i = results.findIndex((a) => a.rank === activeRank)
-      if (e.key === 'ArrowRight' && i < results.length - 1) onSelectRank(results[i + 1].rank)
-      if (e.key === 'ArrowLeft' && i > 0) onSelectRank(results[i - 1].rank)
+      const list = tab === 'tradeoff' ? candidates : results
+      const i = list.findIndex((a) => a.rank === activeRank)
+      if (e.key === 'ArrowRight' && i < list.length - 1) onSelectRank(list[i + 1].rank)
+      if (e.key === 'ArrowLeft' && i > 0) onSelectRank(list[i - 1].rank)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [results, activeRank, onSelectRank])
+  }, [results, candidates, tab, activeRank, onSelectRank])
 
   if (!analog) return null
 
@@ -90,9 +98,9 @@ export default function CompareModal({
             </button>
           ))}
         </div>
-        <div className="modal-main" data-bare={tab === 'ask' || undefined}>
+        <div className="modal-main" data-bare={tab === 'ask' || tab === 'tradeoff' || undefined}>
         <header className="modal-bar">
-          {tab !== 'ask' && (
+          {tab !== 'ask' && tab !== 'tradeoff' && (
             <ol className="picks" aria-label="Earth matches">
               {results.map((a) => (
                 <li key={a.patch_id}>
@@ -117,6 +125,7 @@ export default function CompareModal({
             </>
           )}
           {tab === 'terrain' && <TerrainMap moon={moonSide} earth={earthSide} range={range} />}
+          {tab === 'tradeoff' && <TradeoffView candidates={candidates} activeRank={activeRank} onSelect={onSelectRank} />}
           {tab === 'ask' && <Chat moonName={moon.name} suggestions={suggestions} chat={chat} />}
           {tab === 'terrain3d' && (
             <Suspense fallback={null}>
@@ -130,6 +139,10 @@ export default function CompareModal({
             <p className="sources">
               Moon: NASA LRO camera. Earth: Esri, Maxar, Earthstar Geographics.
               {matched ? ' Both at about 100 m per pixel.' : ' Earth in full detail.'}
+            </p>
+          ) : tab === 'tradeoff' ? (
+            <p className="sources">
+              Practicality never changes the ranking. Scores: higher is easier and cheaper. Some access and power values are estimates; check flags before planning a real campaign.
             </p>
           ) : tab === 'ask' ? (
             <p className="sources">

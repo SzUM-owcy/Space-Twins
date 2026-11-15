@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { loadAnalogs, loadMoonSites, type SitesResult } from './api'
+import { PIN_COUNT, loadAnalogs, loadMoonSites, type SitesResult } from './api'
 import { toDisplaySites } from './sites'
 import type { AnalogsResponse } from './types'
 import SiteIndex from './components/SiteIndex'
@@ -72,8 +72,11 @@ export default function App() {
   }, [selectedId, finding])
 
   const inPair = mode === 'pair' && twins !== null && selected !== null
-  const results = twins?.results ?? []
-  const activeTwin = results.find((a) => a.rank === activeRank) ?? null
+  const candidates = useMemo(() => twins?.results ?? [], [twins])
+  const results = useMemo(() => candidates.slice(0, PIN_COUNT), [candidates])
+  const activeTwin = candidates.find((a) => a.rank === activeRank) ?? null
+  // Keep a selected candidate outside the top pins available to the Explore Data view.
+  const compareResults = activeTwin && activeTwin.rank > PIN_COUNT ? [...results, activeTwin] : results
 
   return (
     <main className="app" data-mode={inPair ? 'pair' : 'moon'}>
@@ -111,7 +114,7 @@ export default function App() {
           <>
             <TwinDetail
               analog={activeTwin}
-              count={results.length}
+              count={candidates.length}
               moon={twins.moon}
               moonName={selected.name}
               moonFeatures={selected.features}
@@ -139,7 +142,8 @@ export default function App() {
       {inPair && compareOpen && (
         <CompareModal
           moon={{ id: selected.id, name: selected.name, lat: selected.lat, lon: selected.lon }}
-          results={results}
+          results={compareResults}
+          candidates={candidates}
           activeRank={activeRank}
           onSelectRank={setActiveRank}
           onClose={() => setCompareOpen(false)}

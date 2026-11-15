@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { formatCoords } from '../sites'
 import type { Analog, MoonSummary } from '../types'
 import { MixBar, MixLegend, moonMix, normalise, type Mix } from './Minerals'
@@ -63,12 +64,15 @@ export default function TwinDetail({
   const showRock = mMix !== null || eMix !== null
 
   return (
-    <section className="detail twin-detail" aria-live="polite" key={analog.patch_id}>
-      <h2 className="name">{analog.region_name}</h2>
-      <p className="coords">
-        {formatCoords(analog.lat, analog.lon)}
-        <span className="sep">Match {analog.rank} of {count}</span>
-      </p>
+    <Fragment key={analog.patch_id}>
+      <header className="twin-head" aria-live="polite">
+        <h2 className="name">{analog.region_name}</h2>
+        <p className="coords">
+          {formatCoords(analog.lat, analog.lon)}
+          <span className="sep">Match {analog.rank} of {count}</span>
+        </p>
+      </header>
+      <section className="detail twin-detail" aria-label={`${analog.region_name} compared with ${moonName}`}>
       <table className="compare">
         <thead>
           <tr>
@@ -107,11 +111,12 @@ export default function TwinDetail({
       )}
 
       <button type="button" className="cta" onClick={onCompare}>
-        Compare views
+        Explore Data
       </button>
       {outOfRange.length > 0 && (
         <p className="warn">Some measurements of this place are more extreme than any Earth terrain we hold, so this ranking is less reliable.</p>
       )}
     </section>
+    </Fragment>
   )
 }

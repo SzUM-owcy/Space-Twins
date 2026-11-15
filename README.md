@@ -81,6 +81,37 @@ All optional features live in side
 tables keyed by `patch_id`, so the strict 17-column index CSVs ([`docs/CONTRACT.md`](docs/CONTRACT.md)) are
 unchanged and terrain-only queries keep working.
 
+### How scoring works (overview)
+
+Two questions are answered separately and never merged into one number.
+
+**1. Scientific similarity (decides the ranking).** `total_distance` (smaller = more similar) is a weighted mean of
+component distances. A component with missing data drops out and the weights renormalise; it is never zero.
+
+| Component | Metric | Used in ranking | Weight in the web frontend |
+|---|---|---|---|
+| Terrain | 12 morphometric features (7 slope percentiles, `rms_height`, `tri_mean`, `relief_range`, `hypsometric_integral`, `elev_skew`), z-scored, RMS | always | 0.6 (the rest) |
+| Thermal | day-night surface-temperature swing, percentile within its own body | optional | 0.2 |
+| Illumination | `solar_visibility_fraction` (share of time the Sun clears the terrain horizon) | optional | 0.2 |
+| Composition | mafic-felsic proxy (ASTER on Earth, Diviner on the Moon; lithology-based fallback on Earth) | opt-in | 0 (shown only) |
+
+The default method is `legacy_percentile`; `physical_hybrid_v1` compares physical values directly where the
+measurements are comparable (see [Scoring methods](#scoring-methods)). After scoring, the top K is taken with at most
+one patch per region.
+
+**2. Practicality (does not affect the ranking).** Attached on request (`--practicality` / `include_practicality`) as
+extra blocks on the same candidates. It never changes `total_distance` or the order.
+
+| Kind | Metric | Meaning |
+|---|---|---|
+| Cost driver, score 0-100 (higher = easier) | access, buildability, emergency support, infrastructure, population | how hard and expensive it is to run a simulation there |
+| Constraint, flag | protected area, World Heritage, community rights, biodiversity, water stress, hazard, security | `ok / warning / manual_review / excluded`; any `excluded` = `hard_excluded` |
+| Output | `field_campaign_score`, `facility_score` + cost class `LOW / MEDIUM / HIGH / VERY HIGH` | weighted combination of the scores for short field campaigns or long-term facilities |
+
+**Choosing a site: the Pareto front.** Each candidate is a point (practical score, scientific closeness). A candidate
+is Pareto-optimal when no other candidate is both closer and more practical. The web frontend shows this chart
+and the CLI plots it with `3b_plot_pareto.py`; see [Practicality and the Pareto front](#practicality-and-the-pareto-front).
+
 ### Why these dimensions
 
 A DEM says how a place *looks*, not what conditions it exposes equipment to. Thermal range and illumination
@@ -193,7 +224,11 @@ the sensible trade-offs; the rest are dominated by another site that is better o
 - Reading the plot: x = practical score (right = easier/cheaper), y = analog distance with the axis inverted
   (up = better), so the best sites are in the top right; green = Pareto-optimal.
 
-The Streamlit app does not show these blocks yet; the data is in the API/CLI output.
+**Web frontend** (`frontend/`): the **Explore Data** view has a **Trade-off** tab with the "Match vs. practicality" chart
+for the 20 best candidates (yellow = best trade-off, red cross = excluded, dashed line = the front, field/facility
+toggle, click a point to select it) and, for the selected site, its access / buildable ground / medical help / power
+scores and the constraints to check. The globe pins and the list still show the top 5 by scientific distance, and the
+match details show cost chips. The tab is hidden when the practicality data is not available. The Streamlit app does not show these blocks; the data is in the API/CLI output.
 
 ### Streamlit app and HTTP API
 

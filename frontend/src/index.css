@@ -189,6 +189,10 @@ button {
 }
 
 /* Detail */
+.twin-head {
+  padding: 24px 20px 0;
+}
+
 .detail {
   padding: 24px 20px 0;
 }
@@ -524,6 +528,7 @@ button {
 }
 
 .app[data-mode='pair'] .twins,
+.app[data-mode='pair'] .twin-head,
 .app[data-mode='pair'] .twin-detail {
   animation: ui-in 0.8s ease 1.5s both;
 }
@@ -595,6 +600,16 @@ button {
     width: 340px;
     padding: 0;
   }
+
+  .twin-head {
+    position: absolute;
+    z-index: 1;
+    top: var(--edge);
+    right: var(--edge);
+    width: 340px;
+    padding: 0;
+  }
+
 
   .credit {
     position: absolute;
@@ -1260,5 +1275,293 @@ button {
 
   .patch canvas {
     transition: none;
+  }
+}
+
+/* Match vs. practicality (Pareto) */
+.pareto {
+  margin-top: 16px;
+}
+
+.pareto-help {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pareto-help summary {
+  cursor: pointer;
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.pareto-help ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.pareto-help li {
+  margin-top: 4px;
+}
+
+.pareto-help p {
+  margin-top: 8px;
+}
+
+.pareto-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.pareto svg {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  overflow: visible;
+}
+
+.pareto-frame {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: var(--faint);
+}
+
+.pareto-grid {
+  stroke: var(--faint);
+  stroke-dasharray: 2 4;
+  opacity: 0.5;
+}
+
+.pareto-tick,
+.pareto-axis {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.pareto-front {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+
+.pareto-point {
+  cursor: pointer;
+  outline: none;
+}
+
+.pareto-hit {
+  fill: transparent;
+}
+
+.pareto-dot {
+  fill: var(--muted);
+  stroke: var(--void);
+  stroke-width: 1;
+}
+
+.pareto-point[data-state='pareto'] .pareto-dot {
+  fill: var(--signal);
+}
+
+.pareto-cross {
+  stroke: var(--rocket);
+  stroke-width: 2;
+  fill: none;
+}
+
+.pareto-point[data-active='true'] .pareto-dot,
+.pareto-point[data-hover='true'] .pareto-dot,
+.pareto-point:focus-visible .pareto-dot {
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+
+.pareto-focus {
+  min-height: 1.4em;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.pareto-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.pareto-legend li::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.pareto-legend li[data-state='pareto']::before {
+  background: var(--signal);
+}
+
+.pareto-legend li[data-state='excluded']::before {
+  background: var(--rocket);
+  border-radius: 0;
+  transform: rotate(45deg) scale(0.8);
+}
+
+/* Trade-off tab in the Explore Data view */
+.tradeoff-wrap {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
+}
+
+.profile-toggle {
+  display: flex;
+  gap: 12px;
+}
+
+.profile-toggle button {
+  display: grid;
+  gap: 2px;
+  padding: 8px 16px;
+  border: 1px solid var(--faint);
+  background: none;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-toggle button span {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.profile-toggle button small {
+  font-size: 12px;
+}
+
+.profile-toggle button[aria-pressed='true'] {
+  border-color: var(--signal);
+  color: var(--paper);
+}
+
+.profile-toggle button:hover {
+  color: var(--paper);
+}
+
+.tradeoff {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 40px;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--faint) transparent;
+}
+
+.tradeoff .pareto {
+  margin-top: 0;
+}
+
+.tradeoff .pareto svg {
+  max-height: 46vh;
+}
+
+.tradeoff-side h3 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 36px;
+  line-height: 1.05;
+}
+
+.tradeoff-cost {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.tradeoff-cost b {
+  color: var(--paper);
+}
+
+.scores {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scores li {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.scores li > :first-child {
+  color: var(--muted);
+}
+
+.scores b {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-bar {
+  height: 6px;
+  background: var(--faint);
+}
+
+.score-bar i {
+  display: block;
+  height: 100%;
+  background: var(--signal);
+}
+
+.flag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flag-list li {
+  padding: 3px 8px;
+  border: 1px solid var(--faint);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.flag-list li[data-status='excluded'] {
+  border-color: var(--rocket);
+  color: var(--paper);
+}
+
+.tradeoff-note {
+  margin-top: 12px;
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 800px) {
+  .tradeoff {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
   }
 }
